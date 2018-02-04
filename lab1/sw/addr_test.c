@@ -6,6 +6,7 @@
 #include <fcntl.h>
 
 #define MAP_SIZE 4096UL
+//this is the offset within a map
 #define MAP_MASK (MAP_SIZE - 1)
 
 #define IO_ADDR 0x41200000
