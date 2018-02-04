@@ -17,7 +17,7 @@
 #define TEST_LENGTH 1024
 
 typedef struct cell{
-    unsigned long addr;
+    unsigned long port;
     unsigned long data;
     unsigned long inter;
 } cell;
