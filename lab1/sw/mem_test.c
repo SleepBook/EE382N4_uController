@@ -42,7 +42,7 @@ int main()
      * Least Two bits of Flag to represent R/W port
      * 0 for port A, 1 for port B
      */
-    int port_flag = 0;
+    int port_flag = 3;
 
     FILE* log, *diag;
     log = fopen("log.txt","w");

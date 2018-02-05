@@ -8,7 +8,7 @@ PWD		:= $(shell pwd)
 CFLAGS=  -I$(INCPATH) -L$(LIBPATH)
 
 test:
-	$(CC) $(CFLAGS) addr_test.c  -o $@
+	$(CC) $(CFLAGS) mem_test.c  -o $@
 
 .PHONY: clean
 clean:
