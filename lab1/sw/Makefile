@@ -7,7 +7,7 @@ CC := arm-linux-gnueabihf-gcc
 PWD		:= $(shell pwd)
 CFLAGS=  -I$(INCPATH) -L$(LIBPATH)
 
-test:
+test: mem_test.c
 	$(CC) $(CFLAGS) mem_test.c  -o $@
 
 .PHONY: clean

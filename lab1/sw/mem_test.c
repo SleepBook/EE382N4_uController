@@ -41,9 +41,8 @@ typedef struct cell{
 
 int main(int argc, char *argv[])
 {
-    bool wp, rp;
-    wp = (argv[0] == "b")?1:0;
-    rp = (argv[1] == "b")?1:0;
+    bool wp = (argc > 2)? (('b' == argv[1][0] || 'B' == argv[1][0])?1:0):0;
+    bool rp = (argc > 3)? (('b' == argv[2][0] || 'B' == argv[2][0])?1:0):0;
 
     FILE* log, *diag;
     log = fopen("log.txt","w");
