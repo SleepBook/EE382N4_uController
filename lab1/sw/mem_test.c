@@ -41,8 +41,9 @@ typedef struct cell{
 
 int main(int argc, char *argv[])
 {
-    bool wp = (argc > 2)? (('b' == argv[1][0] || 'B' == argv[1][0])?1:0):0;
-    bool rp = (argc > 3)? (('b' == argv[2][0] || 'B' == argv[2][0])?1:0):0;
+    bool wp = (argc > 1)? (('b' == argv[1][0] || 'B' == argv[1][0])?1:0):0;
+    bool rp = (argc > 2)? (('b' == argv[2][0] || 'B' == argv[2][0])?1:0):0;
+    bool fail = (argc > 3)?(('f' == argv[3][0] || 'F' == argv[3][0])?1:0):0;
 
     FILE* log, *diag;
     log = fopen("log.txt","w");
@@ -175,11 +176,21 @@ int main(int argc, char *argv[])
             status[mem_offset].inter = interval;
 
             //writing phase
-            if(wp){
-                addr = portb_base + ((((PORT_B_ADDR) + mem_offset*4)&MAP_MASK) >> 2);
+            if(fail){
+                if(wp){
+                    addr = portb_base + ((((PORT_B_ADDR) + mem_offset)&MAP_MASK) >> 2);
+                }
+                else{
+                    addr = porta_base + ((((PORT_A_ADDR) + mem_offset)&MAP_MASK) >> 2);
+                }
             }
             else{
-                addr = porta_base + ((((PORT_A_ADDR) + mem_offset*4)&MAP_MASK) >> 2);
+                if(wp){
+                    addr = portb_base + ((((PORT_B_ADDR) + mem_offset*4)&MAP_MASK) >> 2);
+                }
+                else{
+                    addr = porta_base + ((((PORT_A_ADDR) + mem_offset*4)&MAP_MASK) >> 2);
+                }
             }
 #ifdef DEBUG
             status[mem_offset].v_addr = addr;
@@ -192,11 +203,21 @@ int main(int argc, char *argv[])
         for(i=0;i<TEST_LENGTH;i++){ //checking starts from 0
             if(status[i].inter == 0) continue;
             else if(status[i].inter == 1){
-                if(rp){
-                    addr = portb_base + ((((PORT_B_ADDR) + i*4)&MAP_MASK) >> 2);
+                if(fail){
+                    if(rp){
+                        addr = portb_base + ((((PORT_B_ADDR) + i)&MAP_MASK) >> 2);
+                    }
+                    else{
+                        addr = porta_base + ((((PORT_A_ADDR) + i)&MAP_MASK) >> 2);
+                    }
                 }
                 else{
-                    addr = porta_base + ((((PORT_A_ADDR) + i*4)&MAP_MASK) >> 2);
+                    if(rp){
+                        addr = portb_base + ((((PORT_B_ADDR) + i*4)&MAP_MASK) >> 2);
+                    }
+                    else{
+                        addr = porta_base + ((((PORT_A_ADDR) + i*4)&MAP_MASK) >> 2);
+                    }
                 }
                 data = *addr;
                 fprintf(log, "Readback data from offset %u, the value is %u\n", i, data);
