@@ -10,6 +10,7 @@ CFLAGS=  -I$(INCPATH) -L$(LIBPATH)
 test: mem_test.c
 	$(CC) $(CFLAGS) mem_test.c  -o $@
 
+
 .PHONY: clean
 clean:
 	-rm test *.txt

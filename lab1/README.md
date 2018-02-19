@@ -7,6 +7,7 @@ Lab 1
 - sw/Makefile
 - sw/mem\_test.c
 - hw/lab1.tar.gz
+- hw/ip\_repo.tar.gz
 
 ### Design
 

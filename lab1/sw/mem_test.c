@@ -31,6 +31,7 @@
 #define TEST_LENGTH 1024
 
 #define DEBUG 
+//#define PART1
 typedef struct cell{
     unsigned data;
     unsigned inter;
@@ -97,6 +98,8 @@ int main(int argc, char *argv[])
         unsigned int interval;
         unsigned int temp, i;
         volatile unsigned int *addr;
+
+        unsigned int p_addr, p_addr2;
         fprintf(log, "================================\n");
         fprintf(log, "Cycle Count %d\n", count);
 
@@ -143,6 +146,9 @@ int main(int argc, char *argv[])
             if(!interval) interval = 7;
             status[0].data = data;
             status[0].inter = interval;
+#ifdef PART1
+            status[0].inter = 1;
+#endif
 
             if(wp){
                 addr = portb_base + (((PORT_B_ADDR) &MAP_MASK) >> 2);
@@ -169,8 +175,10 @@ int main(int argc, char *argv[])
             mem_offset = *a_lsfr_base;
             interval = data & INTERV_MASK;
             if(!interval) interval = 7;
+#ifdef PART1
+            interval = 1;
+#endif
            
-
             //create record
             status[mem_offset].data = data;
             status[mem_offset].inter = interval;
@@ -196,7 +204,16 @@ int main(int argc, char *argv[])
             status[mem_offset].v_addr = addr;
 #endif
             *addr = data;
-            fprintf(log, "Writing %u to mem offset %u\n", data, mem_offset);
+            //fprintf(log, "Writing %u to mem offset %p\n", data, addr);
+            if(wp){
+                fprintf(log, "Writing to Port B\n");
+                p_addr = mem_offset + PORT_B_ADDR;
+            }
+            else{
+                fprintf(log, "Writing to Port A\n");
+                p_addr = mem_offset + PORT_A_ADDR;
+            }
+            fprintf(log, "Writing %u to mem offset 0x%.8x\n", data, p_addr);
         }
 
         //readback & check phase
@@ -220,7 +237,16 @@ int main(int argc, char *argv[])
                     }
                 }
                 data = *addr;
-                fprintf(log, "Readback data from offset %u, the value is %u\n", i, data);
+                if(rp){
+                    fprintf(log, "Reading to Port B\n");
+                    p_addr = i + PORT_B_ADDR;
+                }
+                else{
+                    fprintf(log, "Reading to Port A\n");
+                    p_addr = i + PORT_A_ADDR;
+                }
+                fprintf(log, "Readback data from offset 0x%.8x, the value is %u\n", p_addr, data);
+                //fprintf(log, "Readback data from offset %p, the value is %u\n", addr, data);
                 if(data != status[i].data){
 #ifdef DEBUG
                     printf("at address %u:\n", i);
