@@ -27,6 +27,7 @@
 #define LED_OFFSET 8
 
 #define INTERV_MASK 15
+//#define INTERV_MASK 1024
 #define LED_MASK 0xff
 #define TEST_LENGTH 1024
 
@@ -115,7 +116,16 @@ int main(int argc, char *argv[])
                                 addr = porta_base + ((((PORT_A_ADDR) + i*4)&MAP_MASK) >> 2);
                             }
                             data = *addr;
-                            fprintf(log, "Readback data from offset %u, the value is %u\n", i, data);
+                            if(rp){
+                                fprintf(log, "Reading to Port B\n");
+                                p_addr = i + PORT_B_ADDR;
+                               }
+                            else{
+                                fprintf(log, "Reading to Port A\n");
+                                p_addr = i + PORT_A_ADDR;
+                            }
+
+                            fprintf(log, "Readback data from offset 0x%.8x, the value is %u\n", p_addr, data);
                             if(data != status[i].data){
 #ifdef DEBUG
                                 printf("at address %u:\n", i);
@@ -176,7 +186,7 @@ int main(int argc, char *argv[])
             interval = data & INTERV_MASK;
             if(!interval) interval = 7;
 #ifdef PART1
-            interval = 1;
+            interval = 1024;
 #endif
            
             //create record
@@ -247,6 +257,7 @@ int main(int argc, char *argv[])
                 }
                 fprintf(log, "Readback data from offset 0x%.8x, the value is %u\n", p_addr, data);
                 //fprintf(log, "Readback data from offset %p, the value is %u\n", addr, data);
+                //if(data != status[i].data){
                 if(data != status[i].data){
 #ifdef DEBUG
                     printf("at address %u:\n", i);
