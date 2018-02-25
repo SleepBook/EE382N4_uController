@@ -133,10 +133,10 @@ static int __init init_interrupt_arm(void)
  
   printk("FPGA Interrupt Module\n");
   printk("FPGA Driver Loading.\n");
-  printk("Using Major Number %d on %s\n", FPGA_MAJOR, MODULE_NM); 
+  printk("Using Major Number %d on %s\n", PL_PERI_MAJOR, MODULE_NM); 
 	
-  if (register_chrdev(FPGA_MAJOR, MODULE_NM, &fpga_fops)) {
-	printk("fpga_int: unable to get major %d. ABORTING!\n", FPGA_MAJOR);
+  if (register_chrdev(PL_PERI_MAJOR, MODULE_NM, &fpga_fops)) {
+	printk("fpga_int: unable to get major %d. ABORTING!\n", PL_PERI_MAJOR);
 	return -EBUSY;
 	}
 
@@ -150,7 +150,7 @@ static int __init init_interrupt_arm(void)
 
  // request interrupt from linux
  
-  rv = request_irq(INTERRUPT, interrupt_interrupt_arm, IRQF_TRIGGER_RISING,
+  rv = request_irq(INTERRUPT, interrupt_handler, IRQF_TRIGGER_RISING,
                    "interrupt_arm", NULL);
   
   if ( rv ) {
@@ -183,7 +183,7 @@ static void __exit cleanup_interrupt_arm(void)
 /* free the interrupt */
   free_irq(INTERRUPT,NULL);
   
-  unregister_chrdev(FPGA_MAJOR, MODULE_NM);
+  unregister_chrdev(PL_PERI_MAJOR, MODULE_NM);
 
   remove_proc_entry("interrupt_arm", NULL);
   printk(KERN_INFO "%s %s removed\n", MODULE_NM, MODULE_VER);
