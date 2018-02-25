@@ -1,1 +1,7 @@
 **/*.tar.gz
+*.order
+*.ko
+*.o
+*.symvers
+*.cmd
+.tmp_versions
