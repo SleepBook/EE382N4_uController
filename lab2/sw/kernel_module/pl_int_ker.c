@@ -77,6 +77,7 @@ static int fpga_release (struct inode *inode, struct file *file) {
  * input device and issues fcntl(F_SETFL) on the associated file
  * descriptor. fasync_helper() ensures that if the driver issues a
  * kill_fasync(), a SIGIO is dispatched to the owning application.
+ * Actually i am not clear how this helper function ensures that
  */
 static int fpga_fasync (int fd, struct file *filp, int on)
 {

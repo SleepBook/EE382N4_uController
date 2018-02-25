@@ -23,18 +23,36 @@
 
 #define INT_TRIGGER 0x40000000
 
-int det_int=0;
-int num_int =0;
+struct timeval tv1, tv2;
+
+
+int assertInt()
+{
+    volatile unsigned int *int_control;
+    int fd = open("/dev/mem", O_RDWR|O_SYNC);
+    //int fd = open("/dev/mem", O_RDWR|O_SYNC, S_IRUSR); 
+    if(fd == -1){
+        printf("unable to open /dev/mem");
+        exit(-1);
+    }
+
+    int_control = (unsigned int*)mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, INT_TRIGGER & ~MAP_MASK);
+    *int_control  = 1;
+
+    close(fd);
+    munmap(NULL, MAP_SIZE);
+    return 0;
+}
+
 
 void sighandler(int signo)
 {
     if (signo==SIGIO)
-        det_int++;
+        gettimeofday(&tv2);
     printf("APP:interrupt: Interrupt captured by SIGIO\n");
     return;
 }
 
-char buffer[4096];
 
 int main(int argc, char **argv)
 {
@@ -59,11 +77,11 @@ int main(int argc, char **argv)
     	rc = fd;
     	exit (-1);
     }
-    
     printf("APP: /dev/fpga_int opened successfully\n");    	
 
     /*
-     * Not exactly sure what SETOWN here will do
+     * let the currecnt process to receive the SIGIO signal 
+     * associated with this file
      */
     fc = fcntl(fd, F_SETOWN, getpid());
     
@@ -73,8 +91,15 @@ int main(int argc, char **argv)
     	exit (-1);
     } 
       
-    /* will triger the fasync func in kernel, which call the 
+    /*
+     * Change the file status descriptor, which will
+     * triger the fasync func in kernel, which call the 
      * fasync_helper to do something on the signal queue
+     *
+     * And in this kernel part, this action basically 
+     * ensures that a SIGIO signal is dispatched when 
+     * the kernel calls the fill_fasync func, which should 
+     * appear in the interrupt handler
      */
     fc= fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_ASYNC);
 
@@ -84,38 +109,21 @@ int main(int argc, char **argv)
     	exit (-1);
     }   
 
-    
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-*
-*   This while loop emulates a program running the main
-*   loop i.e. sleep(). The main loop is interrupted when
-*   the SIGIO signal is received.
-*/
-    volatile unsigned int *address ;                                            
-    unsigned long target_addr = 0x40000000;          
-    
-    while(1) {
-    
-        /* this only returns if a signal arrives */
-        sleep(86400); /* one day */
-        if (!det_int)
-            continue;
-        num_int++;
-        
-        printf("mon_interrupt: Number of interrupts detected: %d\n", num_int);
 
-        int fd = open("/dev/mem", O_RDWR|O_SYNC, S_IRUSR); 
-        address = (unsigned int *)mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED,
-                                       fd, target_addr & ~MAP_MASK);
-        printf("0x%.4x" , (target_addr));
-        printf(" = 0x%.8x\n", *address);              // display register value  
-	
-	    int temp = close(fd);
-	    if(temp == -1)
-	    {
-		    printf("Unable to close /dev/mem.  Ensure it exists (major=1, minor=1)\n");
-		    return -1;
-	    }	       
-	     det_int=0;
-    }
+    /*==============================================
+     * Testing INterval Part
+     */
+
+    int status;
+    int interval;
+    gettimeofday(&tv1);
+    status = assertInt();
+    sleep(86400);
+    //INterval is in usec
+    printf("process wake up, interrupt handled correctly\n");
+    interval = (int)((tv2.tv_sec - tv1.tv_sec)*1000 - (tv2.tv_usec - tv1.tv_usec));
+    printf("The Interrupt took %d usecs to handle\n", interval);
+    return 0;
 }
+    
+
