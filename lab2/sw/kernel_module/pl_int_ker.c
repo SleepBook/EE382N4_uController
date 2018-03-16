@@ -22,7 +22,12 @@
 #include <linux/mman.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
-
+#include <linux/types.h>  // mode_t, dev_t
+#include <linux/kdev_t.h>  // MKDEV
+#include <linux/fcntl.h>  // mknod
+#include <linux/stat.h>
+#include <linux/unistd.h>
+#include <asm/uaccess.h>  // for get_fs(), set_fs()
 
 #define MODULE_VER "1.0"
 #define INTERRUPT 164
@@ -133,6 +138,7 @@ static int __init init_interrupt_arm(void)
 {
 
  int rv = 0;
+ mm_segment_t saved_fs;
  
   printk("FPGA Interrupt Module\n");
   printk("FPGA Driver Loading.\n");
@@ -145,6 +151,32 @@ static int __init init_interrupt_arm(void)
   printk("Using Major Number %d on %s\n", major, MODULE_NM);
 
 
+  //rv = mknod("/dev/fpga_interrupt_peripheral", S_IFCHR | S_IRWXU | S_IRWXG | S_IRWXO,  MKDEV(major, 0));
+  // http://opensourceforu.com/2011/04/character-device-files-creation-operations/
+  //printk("SYS_mknod=%d\n", __NR_mknod);
+  saved_fs = get_fs();
+  set_fs(get_ds());
+  asm(
+          "mov r0, %1;"
+          "mov r1, %2;"
+          "mov r2, %3;"
+          "lsl r2, #8;"
+          "mov r7, #14;" // /usr/include/arm-linux-gnueabihf/asm/unistd.h
+          "swi #0;"
+          //"add %0, %0, $2;"
+          "mov %0, r0;"
+          :
+          "=r" (rv)
+          :
+          "r" ("/dev/fpga_interrupt_peripheral"),
+          "r" (S_IFCHR | S_IRWXU | S_IRWXG | S_IRWXO),
+          "r" (major)
+          :
+          "r7"
+     );
+  set_fs(saved_fs);
+  if(!rv)
+    printk("mknod error: %d\n", rv);
   interrupt_arm_file = proc_create("interrupt_arm", 0444, NULL, &proc_fops );
   
   if(interrupt_arm_file == NULL) {
@@ -183,6 +215,7 @@ static int __init init_interrupt_arm(void)
  
 static void __exit cleanup_interrupt_arm(void)
 {
+  mm_segment_t saved_fs;
 
 /* free the interrupt */
   free_irq(INTERRUPT,NULL);
@@ -191,6 +224,21 @@ static void __exit cleanup_interrupt_arm(void)
 
   remove_proc_entry("interrupt_arm", NULL);
   printk(KERN_INFO "%s %s removed\n", MODULE_NM, MODULE_VER);
+  //printk("SYS_unlink=%d\n", __NR_unlink);
+  saved_fs = get_fs();
+  set_fs(get_ds());
+  asm(
+          "mov r0, %0;"
+          "mov r7, #10;" // /usr/include/arm-linux-gnueabihf/asm/unistd.h
+          "swi #0;"
+          :
+          :
+          "r" ("/dev/fpga_interrupt_peripheral")
+          :
+          "r7"
+     );
+  set_fs(saved_fs);
+  printk(KERN_INFO "/dev/fpga_interrupt_peripheral removed\n");
 }
 
 module_init(init_interrupt_arm);
