@@ -25,8 +25,7 @@
 
 
 #define MODULE_VER "1.0"
-#define INTERRUPT 164	// 
-#define PL_PERI_MAJOR 245
+#define INTERRUPT 164
 #define MODULE_NM "fpga_interrupt_peripheral"
 
 #undef DEBUG
@@ -34,8 +33,9 @@
 
 static struct proc_dir_entry *interrupt_arm_file;
 static struct fasync_struct *fasync_fpga_queue ;
+static int major;
 
-void interrupt_handler(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t interrupt_handler(int irq, void *dev_id)
 {  
 #ifdef DEBUG
     printk(KERN_INFO "fpga_int_peripheral: Interrupt detected in kernel \n");
@@ -43,6 +43,8 @@ void interrupt_handler(int irq, void *dev_id, struct pt_regs *regs)
   
 /* Signal the user application that an interupt occured */  
   kill_fasync(&fasync_fpga_queue, SIGIO, POLL_IN);
+
+  return 0;
 }
 
 
@@ -134,12 +136,13 @@ static int __init init_interrupt_arm(void)
  
   printk("FPGA Interrupt Module\n");
   printk("FPGA Driver Loading.\n");
-  printk("Using Major Number %d on %s\n", PL_PERI_MAJOR, MODULE_NM); 
 	
-  if (register_chrdev(PL_PERI_MAJOR, MODULE_NM, &fpga_fops)) {
-	printk("fpga_int: unable to get major %d. ABORTING!\n", PL_PERI_MAJOR);
+  major = register_chrdev(0, MODULE_NM, &fpga_fops);
+  if (0 > major) {
+	printk("fpga_int: unable to get major. ABORTING!\n");
 	return -EBUSY;
 	}
+  printk("Using Major Number %d on %s\n", major, MODULE_NM);
 
 
   interrupt_arm_file = proc_create("interrupt_arm", 0444, NULL, &proc_fops );
@@ -184,7 +187,7 @@ static void __exit cleanup_interrupt_arm(void)
 /* free the interrupt */
   free_irq(INTERRUPT,NULL);
   
-  unregister_chrdev(PL_PERI_MAJOR, MODULE_NM);
+  unregister_chrdev(major, MODULE_NM);
 
   remove_proc_entry("interrupt_arm", NULL);
   printk(KERN_INFO "%s %s removed\n", MODULE_NM, MODULE_VER);

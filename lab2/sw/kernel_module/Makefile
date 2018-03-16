@@ -1,4 +1,4 @@
-KDIR= /usr/src/linux-4.6
+KDIR= /usr/src/plnx_kernel
 LIBPATH=$(KDIR)/lib
 INCPATH=$(KDIR)/include
 
