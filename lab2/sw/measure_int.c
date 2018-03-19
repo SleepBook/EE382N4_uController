@@ -24,8 +24,7 @@
 #define INT_TRIGGER 0x40000000
 
 struct timeval tv1, tv2;
-int sigio_processed;
-
+static volatile sig_atomic sigprocessed;
 
 int assertInt()
 {
