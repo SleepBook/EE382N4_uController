@@ -24,6 +24,7 @@
 #define INT_TRIGGER 0x40000000
 
 struct timeval tv1, tv2;
+int sigio_processed;
 
 
 int assertInt()
@@ -47,6 +48,7 @@ int assertInt()
 
 void sighandler(int signo)
 {
+    sigio_processed = 1;
     if (signo==SIGIO)
         gettimeofday(&tv2);
     printf("APP:interrupt: Interrupt captured by SIGIO\n");
@@ -111,17 +113,34 @@ int main(int argc, char **argv)
 
 
     /*==============================================
-     * Testing INterval Part
+     * Testing Interval Part
+     * Update on Mar 18th 2018:
+     *      replace the sleep() with new interface, which 
+     *      guarantee sig miss won't happen and thus is
+     *      deadlock-safe
      */
 
     int status;
     int interval;
+    sigset_t signal_mask, signal_mask_old, signal_mask_most;
+
+    //single round measuring
+    sigio_processed = 0;
+    (void)sigfillset(&signal_mask);
+    (void)sigfillset(&signal_mask_most);
+    (void)sigdelset(&signal_mask_most, SIGIO);
+    (void)sigprocmask(SIG_SETMASK, &signal_mask, &signal_mask_old);
+
     gettimeofday(&tv1);
     status = assertInt();
-    sleep(86400);
+    if(sigio_processed == 0){
+        sigsuspend(&signal_mask_most);
+    }
+    (void)sigprocmask(SIG_SETMASK, &signal_mask_old, NULL);
+    
     //INterval is in usec
     printf("process wake up, interrupt handled correctly\n");
-    interval = (int)((tv2.tv_sec - tv1.tv_sec)*1000 - (tv2.tv_usec - tv1.tv_usec));
+    interval = (int)((tv2.tv_sec - tv1.tv_sec)*1000000 + (tv2.tv_usec - tv1.tv_usec));
     printf("The Interrupt took %d usecs to handle\n", interval);
     return 0;
 }
