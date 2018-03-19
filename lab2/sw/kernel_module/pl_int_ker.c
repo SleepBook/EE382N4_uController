@@ -46,9 +46,12 @@ irqreturn_t interrupt_handler(int irq, void *dev_id)
     printk(KERN_INFO "fpga_int_peripheral: Interrupt detected in kernel \n");
 #endif
   
-/* Signal the user application that an interupt occured */  
+/* 
+ * Signal the user application that an interupt occured
+ * NOTICE the name kill in Linux usually is assocaited with 
+ * sending signals
+ */  
   kill_fasync(&fasync_fpga_queue, SIGIO, POLL_IN);
-
   return 0;
 }
 
@@ -56,7 +59,6 @@ irqreturn_t interrupt_handler(int irq, void *dev_id)
 /*
  * This function is called when the fpga_int device is opened
  */
- 
 static int fpga_open (struct inode *inode, struct file *file) {
 #ifdef DEBUG
     	printk(KERN_INFO "fpga_int_peripheral: Inside fpga_open \n");
@@ -69,7 +71,6 @@ static int fpga_open (struct inode *inode, struct file *file) {
  * This function is called when the fpga_int device is released
  */
 static int fpga_release (struct inode *inode, struct file *file) {
-
 #ifdef DEBUG
     	printk(KERN_INFO "\nfpga_int: Inside fpga_release \n");  // DEBUG
 #endif
@@ -101,7 +102,6 @@ static int fpga_fasync (int fd, struct file *filp, int on)
 *  Define which file operations are supported
 *
 */
-
 struct file_operations fpga_fops = {
 	.owner	=	THIS_MODULE,
 	.llseek	=	NULL,
