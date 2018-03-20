@@ -5,7 +5,6 @@
  *     which will be catchted by a user program for measuring latency
  * Wenqi Yin
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -32,64 +31,38 @@
 
 #define MODULE_VER "1.0"
 #define INTERRUPT 164
-#define FPGA_INT_PA_BASE (char*)0x43C10000
+#define FPGA_INT_PA_BASE 0x43C10000
 #define MAP_SIZE 4096UL
-#define MODULE_NM "fpga_int"
-
-#undef DEBUG
-#define DEBUG
+#define MODULE_NM "fpga_intr"
+#define CLASS_NM "fpga_peri"
+#define DEVICE_NM "fpga_intr"
 
 static struct proc_dir_entry *proc_file;
 static struct fasync_struct *fasync_queue ;
-static struct cdev chr_dev;  /* Global variable for the character device structure */
-static struct class *p_devclass;  /* Global variable for the device class */
-static int errno;
-static dev_t dev_num;  /* Global variable for the first device number */
+static struct device *dev_dev;  /* Global variable for the character device structure */
+static struct class *dev_class;  /* Global variable for the device class */
+static int major_num;
 static void __iomem * fpga_int_va_base;
 static int fpga_int_va_offset;
+static int errno;
 
-
-/*
- * This function is called when the associated interrupt raises
- */
 irqreturn_t interrupt_handler(int irq, void *dev_id)
 {  
-#ifdef DEBUG
   printk(KERN_INFO "[KM %s] Interrupt detected in kernel \n", MODULE_NM);
-#endif
-  
-/* 
- * Signal the user application that an interupt occured
- * NOTICE the name kill in Linux usually is assocaited with 
- * sending signals
- */
   kill_fasync(&fasync_queue, SIGIO, POLL_IN);
   return 0;
 }
 
 
-/*
- * This function is called when the fpga_int device is opened
- */
 static int fpga_int_open (struct inode *inode, struct file *file) {
-#ifdef DEBUG
   printk(KERN_INFO "[KM %s] Inside %s_open \n", MODULE_NM, MODULE_NM);
-#endif
-
   fpga_int_va_offset = 0;
-
   return 0;
 }
 
 
-/*
- * This function is called when the fpga_int device is released
- */
 static int fpga_int_release (struct inode *inode, struct file *file) {
-#ifdef DEBUG
   printk(KERN_INFO "[KM %s] Inside %s_release \n", MODULE_NM, MODULE_NM);
-#endif
-
   return 0;
 }
 
@@ -105,79 +78,31 @@ static int fpga_int_release (struct inode *inode, struct file *file) {
  */
 static int fpga_int_fasync (int fd, struct file *filp, int on)
 {
-#ifdef DEBUG
   printk(KERN_INFO "[KM %s] Inside %s_fasync \n", MODULE_NM, MODULE_NM);
-#endif
   return fasync_helper(fd, filp, on, &fasync_queue);
 } 
 
-/*
- * This function is to map the read operation on the device node to device
- */
-ssize_t fpga_int_read (
-        struct file * pf,  /* point to file struct */
-        char * usr_buf,  /* the buffer to fill with data */
-        size_t len,  /* the length of buffer */
-        loff_t * offset  /* offset in the file, need explicitly point
-                            out if it is not recorded in pf struct */
-        )
+
+ssize_t fpga_int_read(
+        struct file *fd,
+        char *buf,
+        size_t len,
+        loff_t *offset)
 {
-
-  int bytes_read = 0;
-  char * p_char = (char*) fpga_int_va_base + fpga_int_va_offset;
-
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] Inside %s_read, fill %d char to %p \n",
-          MODULE_NM, MODULE_NM, len, usr_buf);
-#endif
-
-  while(len && p_char < (char*) fpga_int_va_base + MAP_SIZE)
-  {
-      put_user(*(p_char++), usr_buf++);
-      len--;
-      bytes_read++;
-  }
-
-  fpga_int_va_offset += bytes_read;
-
-  return bytes_read;
+    int errno = 0;
+    errno = copy_to_user(buf, fpga_int_va_base, len);
+    if(errno != 0){
+      printk(KERN_ALERT "ERROR when read from kernel\n");
+      return -EFAULT;
+    }
+  return 0;
 }
 
-/*
- * This function is to map the write operation on the device node to device
- */
-ssize_t fpga_int_write (
-        struct file * pf,  /* point to file struct */
-        const char * usr_buf,  /* the buffer holding data to fill */
-        size_t len,  /* the length of buffer */
-        loff_t * offset  /* offset in the file, need explicitly point
-                            out if it is not recorded in pf struct */
-        )
+
+ssize_t fpga_int_write(struct file* fd, const char* buf, size_t len, loff_t *offset)
 {
-
-  int bytes_write = 0;
-  char * p_char = (char*) fpga_int_va_base + fpga_int_va_offset;
-
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] Inside %s_write, fill %d char from %p \n",
-          MODULE_NM, MODULE_NM, len, usr_buf);
-#endif
-
-  while(len && p_char < (char*) fpga_int_va_base + MAP_SIZE)
-  {
-      get_user(*(p_char++), usr_buf++);
-#ifdef DEBUG
-      printk(KERN_INFO "[KM %s] write [%p]=%x to %p \n", MODULE_NM, usr_buf-1, *(p_char-1), p_char);
-#endif
-      len--;
-      bytes_write++;
-  }
-
-  //fpga_int_va_offset += bytes_write;
-
-  return bytes_write;
+    return 0;
 }
-
 
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -217,144 +142,73 @@ static const struct file_operations proc_fops = {
  
 static int __init init_fpga_int(void)
 {
-
-#ifdef DEBUG
   printk("[KM %s] Start initializing \n", MODULE_NM);
-#endif
 
-  /* Step 0: create proc entry */
+  //create /proc entry
   proc_file = proc_create("fpga_int", 0444, NULL, &proc_fops );
-  
   if(NULL == proc_file) {
-    printk(KERN_ALERT "[KM %s] create /proc entry returned NULL. ABORTING! \n", MODULE_NM);
-    goto proc_create_failed;
+      printk(KERN_ALERT "[KM %s] create /proc entry returned NULL. ABORTING! \n", MODULE_NM);
+      return -ENOMEM;
   }
+  printk(KERN_INFO "[KM %s] create /proc entry successful\n", MODULE_NM);
 
-  /* Step 1: allocate character device region */
-  errno = alloc_chrdev_region( &dev_num, 0, 1, MODULE_NM);
-
-  if(0 > errno)
-  {
-    printk(KERN_ALERT "[KM %s] Device Registration error: %d \n", MODULE_NM, errno);
-    return -EBUSY;
+  //create /dev entry
+  major_num = register_chrdev(0, MODULE_NM, &fpga_int_fops);
+  if(0 > major_num){
+      printk(KERN_ALERT "Fail to register %s under /dev", MODULE_NM);
+      remove_proc_entry("fpga_intr", NULL);
+      return -EBUSY;
   }
-#ifdef DEBUG
-  else
-    printk(KERN_INFO "[KM %s] Major Number is %d \n", MODULE_NM, dev_num >> 20);
-#endif
+  printk(KERN_INFO "[KM %s] Successfully register with major number %d\n",MODULE_NM, major_num);
 
-  /* Step 2: create character device class */
-  p_devclass = class_create(THIS_MODULE, "chardev");
-  if(NULL == p_devclass)
-  {
-    printk(KERN_ALERT "[KM %s] Class creation failed \n", MODULE_NM);
-    goto devclass_create_failed;
+  dev_class = class_create(THIS_MODULE, CLASS_NM);
+  if(IS_ERR(dev_class)){
+      unregister_chrdev(major_num, MODULE_NM);
+      remove_proc_entry("fpga_intr", NULL);
+      printk(KERN_ALERT "Fail to create device class\n");
+      return -EBUSY;
   }
-
-  /* Step 3: create character device */
-  if(NULL == device_create(p_devclass, NULL, dev_num, NULL, MODULE_NM))
-  {
-    printk(KERN_ALERT "[KM %s] Device creation failed \n", MODULE_NM);
-    goto dev_create_failed;
-  }
-
-  /* Step 4: initialize character device and add it to device class */
-  cdev_init(&chr_dev, &fpga_int_fops);
-
-  if(-1 == cdev_add(&chr_dev, dev_num, 1))
-  {
-    printk(KERN_ALERT "[KM %s] Device addition failed \n", MODULE_NM);
-    goto dev_add_failed;
-  }
-
- /* Step 5: bind interrupt from linux */
- 
-  errno = request_irq(INTERRUPT, interrupt_handler, IRQF_TRIGGER_RISING,
-                   "fpga_int", NULL);
   
-  if(errno)
-  {
-    printk(KERN_ALERT "[KM %s] Can't get interrupt %d \n", MODULE_NM, INTERRUPT);
-    goto irq_request_failed;
+  dev_dev = device_create(dev_class, NULL, MKDEV(major_num, 0), NULL, DEVICE_NM);
+  if(IS_ERR(dev_dev)){
+      class_destroy(dev_class);
+      unregister_chrdev(major_num, MODULE_NM);
+      remove_proc_entry("fpga_intr", NULL);
+      printk(KERN_ALERT "Fail to create device\n");
+      return -EBUSY;
   }
 
- /* Step 6: map physical address to virtual address */
+  //bond interrupt
+  errno = request_irq(INTERRUPT, interrupt_handler, IRQF_TRIGGER_RISING,
+                   "fpga_intr", NULL);
+  if(errno){
+    printk(KERN_ALERT "[KM %s] Can't get interrupt %d \n", MODULE_NM, INTERRUPT);
+    device_destroy(dev_class, MKDEV(major_num, 0));
+    class_destroy(dev_class);
+    unregister_chrdev(major_num, MODULE_NM);
+    remove_proc_entry("fpag_intr", NULL);
+    return -ENOMEM;
+  }
+
  
+  //maping register to addressspace
   fpga_int_va_base = ioremap((resource_size_t)FPGA_INT_PA_BASE, MAP_SIZE);
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] %p gets virtual address %p \n", MODULE_NM, FPGA_INT_PA_BASE, fpga_int_va_base);
-#endif
-
-/* everything initialized */
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] %s Initialized\n ",MODULE_NM, MODULE_VER);
-#endif
+  printk(KERN_INFO "[KM %s] mapped to virtual address %p \n", MODULE_NM, fpga_int_va_base);
+  printk(KERN_INFO "[KM %s] %s Initialization done\n ",MODULE_NM, MODULE_VER);
   return 0;
-
-irq_request_failed:
-dev_add_failed:
-dev_create_failed:
-  class_destroy(p_devclass);
-devclass_create_failed:
-  unregister_chrdev_region(dev_num, 1);
-/* remove the proc entry on error */
-  remove_proc_entry("fpga_int", NULL);
-  return -EBUSY;
-
-proc_create_failed:
-  return -ENOMEM;
-
 }
 
 
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * function: cleanup_fpga_int
- *
- * This function frees interrupt 164 then removes the /proc directory entry 
- * interrupt_arm. 
- */
- 
 static void __exit cleanup_fpga_int(void)
 {
-  /* Step -6: unmap  */
   iounmap(fpga_int_va_base);
-
-  /* Step -5: free the interrupt */
   free_irq(INTERRUPT,NULL);
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] interrupt %d released \n", MODULE_NM, INTERRUPT);
-#endif
-
-  /* Step -4: remove device from class */
-  device_destroy(p_devclass, dev_num);
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] device removed \n", MODULE_NM);
-#endif
-
-  /* Step -3: device delete */
-  cdev_del(&chr_dev);
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] device deleted \n", MODULE_NM);
-#endif
-
-  /* Step -2: destroy device class */
-  class_destroy(p_devclass);
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] device class destroied \n", MODULE_NM);
-#endif
-
-  /* Step -1: unregister character device region */
-  unregister_chrdev_region(dev_num, 1);
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] device region unregisted \n", MODULE_NM);
-#endif
-
-  /* Step -0: remove proc entry */
-  remove_proc_entry("fpga_int", NULL);
-#ifdef DEBUG
-  printk(KERN_INFO "[KM %s] /dev/fpga_int removed \n", MODULE_NM);
-#endif
+  device_destroy(dev_class, MKDEV(major_num, 0));
+  class_destroy(dev_class);
+  unregister_chrdev(major_num, MODULE_NM);
+  remove_proc_entry("fpga_intr", NULL);
 }
+
 
 module_init(init_fpga_int);
 module_exit(cleanup_fpga_int);
