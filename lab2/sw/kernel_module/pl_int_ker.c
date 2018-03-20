@@ -32,6 +32,7 @@
 
 #define MODULE_VER "1.0"
 #define INTERRUPT 164
+#define FPGA_INT_PA_BASE 0x43C10000
 #define MODULE_NM "fpga_int"
 
 #undef DEBUG
@@ -43,6 +44,9 @@ static struct cdev chr_dev;  /* Global variable for the character device structu
 static struct class *p_devclass;  /* Global variable for the device class */
 static int errno;
 static dev_t dev_num;  /* Global variable for the first device number */
+
+static int fid;  /* opened file id */
+static char * fpga_int_va_base;
 
 
 /*
@@ -71,6 +75,25 @@ static int fpga_int_open (struct inode *inode, struct file *file) {
 #ifdef DEBUG
   printk(KERN_INFO "[KM %s] Inside %s_open \n", MODULE_NM, MODULE_NM);
 #endif
+
+  fid = open("/dev/mem", O_RDWR|O_SYNC);
+  if(0 > fid)
+  {
+      printk(KERN_ALERT "[KM %s] Open /dev/mem error: %d \n", MODULE_NM, fid);
+      return -1;
+  }
+  else  /* now /dev/mem is opened, do memory map */
+  {
+      fpga_int_va_base = (char *)mmap(
+              NULL,  /* let kernel to choose the virtual address */
+              4096UL,  /* always map one page */
+              PROT_READ|PROT_WRITE,  /* permissions protection */
+              MAP_SHARED,  /* share the mapping? */
+              fid,  /* target device node to map */
+              FPGA_INT_PA_BASE
+              );
+  }
+
   return 0;
 }
 
@@ -103,6 +126,34 @@ static int fpga_int_fasync (int fd, struct file *filp, int on)
   return fasync_helper(fd, filp, on, &fasync_queue);
 } 
 
+/*
+ * This function is to map the read operation on the device node to device
+ */
+ssize_t fpga_int_read (
+        struct file * pf,  /* point to file struct */
+        char * usr_buf,  /* the buffer to fill with data */
+        size_t len,  /* the length of buffer */
+        loff_t * offset  /* offset in the file, need explicitly point
+                            out if it is not recorded in pf struct */
+        ) {
+#ifdef DEBUG
+  printk(KERN_INFO "[KM %s] Inside %s_read, fill %d char to %x \n",
+          MODULE_NM, MODULE_NM, len, usr_buf);
+#endif
+  int bytes_read = 0;
+  char * p_reg = *offset;
+
+  while(len)
+  {
+      put_user(*(p_reg++), usr_buf++);
+      len--;
+      bytes_read++;
+      *offset++;
+  }
+
+  return bytes_read;
+}
+
 
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -113,7 +164,7 @@ static int fpga_int_fasync (int fd, struct file *filp, int on)
 struct file_operations fpga_int_fops = {
   .owner = THIS_MODULE,
   .llseek = NULL,
-  .read = NULL,
+  .read = fpga_int_read,
   .write = NULL,
   .poll = NULL,
   .unlocked_ioctl = NULL,
@@ -124,8 +175,6 @@ struct file_operations fpga_int_fops = {
   .fsync = NULL,
   .fasync = fpga_int_fasync,
   .lock = NULL,
-  .read = NULL,
-  .write = NULL,
 };
 
 static const struct file_operations proc_fops = {

@@ -17,14 +17,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>  
 
-#define PL_PERI_MAJOR 245
 #define MAP_SIZE 4096UL
 #define MAP_MASK (MAP_SIZE - 1)     
 
 #define INT_TRIGGER 0x40000000
 
 struct timeval tv1, tv2;
-static volatile sig_atomic sigprocessed;
+static volatile sig_atomic_t sigio_processed;
 
 int assertInt()
 {
@@ -57,11 +56,14 @@ void sighandler(int signo)
 
 int main(int argc, char **argv)
 {
-    int count;
+    int count = 1;  /* by default loop once */
     struct sigaction action;
-    int fd;
+    int fd;  /* device node */
     int rc;
-    int fc;
+    int fc;  /* current process */
+
+    if(1 < argc)  /* loop count is specified */
+        count = atoi(argv[1]);
 
     /* 
      * bond callback when SIGIO come in
@@ -75,7 +77,7 @@ int main(int argc, char **argv)
     fd = open("/dev/fpga_int", O_RDWR);
     if (fd == -1) {
     	perror("Unable to open /dev/fpga_int");
-    	rc = fd;
+    	/* rc = fd; */
     	exit (-1);
     }
     printf("APP: /dev/fpga_int opened successfully\n");    	
@@ -88,7 +90,8 @@ int main(int argc, char **argv)
     
     if (fc == -1) {
     	perror("SETOWN failed\n");
-    	rc = fd;
+    	/* rc = fd; */
+        close(fd);
     	exit (-1);
     } 
       
@@ -99,7 +102,7 @@ int main(int argc, char **argv)
      *
      * And in this kernel part, this action basically 
      * ensures that a SIGIO signal is dispatched when 
-     * the kernel calls the fill_fasync func, which should 
+     * the kernel calls the kill_fasync func, which should 
      * appear in the interrupt handler
      */
     fc= fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_ASYNC);
