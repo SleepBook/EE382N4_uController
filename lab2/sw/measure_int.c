@@ -122,8 +122,16 @@ int main(int argc, char **argv)
     (void)sigdelset(&signal_mask_most, SIGIO);
     (void)sigprocmask(SIG_SETMASK, &signal_mask, &signal_mask_old);
 
+    //status = assertInt(fd);
+    int input = 0;
+
+    //gettimeofday(&tv1);
+    write(fd, &input, 4);
     gettimeofday(&tv1);
-    status = assertInt(fd);
+    input = 1;
+    printf("%d\n", input);
+    write(fd, &input, 4);
+
     if(sigio_processed == 0){
         sigsuspend(&signal_mask_most);
     }
