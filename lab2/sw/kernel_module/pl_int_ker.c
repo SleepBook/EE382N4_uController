@@ -34,14 +34,15 @@
 #define FPGA_INT_PA_BASE 0x43C10000
 #define MAP_SIZE 4096UL
 #define MODULE_NM "fpga_intr"
-#define CLASS_NM "fpga_peri"
-#define DEVICE_NM "fpga_intr"
 
+//registering device
 static struct proc_dir_entry *proc_file;
+struct cdev my_cdev;
+dev_t dev_num = 0;
+static struct class *dev_class;
+static struct device *dev_dev;
+
 static struct fasync_struct *fasync_queue ;
-static struct device *dev_dev;  /* Global variable for the character device structure */
-static struct class *dev_class;  /* Global variable for the device class */
-static int major_num;
 static void __iomem * fpga_int_va_base;
 static int fpga_int_va_offset;
 static int errno;
@@ -145,7 +146,7 @@ static int __init init_fpga_int(void)
   printk("[KM %s] Start initializing \n", MODULE_NM);
 
   //create /proc entry
-  proc_file = proc_create("fpga_int", 0444, NULL, &proc_fops );
+  proc_file = proc_create("fpga_intr", 0444, NULL, &proc_fops );
   if(NULL == proc_file) {
       printk(KERN_ALERT "[KM %s] create /proc entry returned NULL. ABORTING! \n", MODULE_NM);
       return -ENOMEM;
@@ -153,26 +154,30 @@ static int __init init_fpga_int(void)
   printk(KERN_INFO "[KM %s] create /proc entry successful\n", MODULE_NM);
 
   //create /dev entry
-  major_num = register_chrdev(0, MODULE_NM, &fpga_int_fops);
-  if(0 > major_num){
+  int rv;
+  rv = alloc_chrdev_region(&dev_num, 0, 1, MODULE_NM);
+  if(0 > rv){
       printk(KERN_ALERT "Fail to register %s under /dev", MODULE_NM);
       remove_proc_entry("fpga_intr", NULL);
       return -EBUSY;
   }
-  printk(KERN_INFO "[KM %s] Successfully register with major number %d\n",MODULE_NM, major_num);
+  cdev_init(&my_cdev, &fpga_int_fops);
+  my_cdev.owner = THIS_MODULE;
+  cdev_add(&my_cdev, dev_num, 1);
+  printk(KERN_INFO "[KM %s] Successfully register \n", MODULE_NM);
 
   dev_class = class_create(THIS_MODULE, CLASS_NM);
   if(IS_ERR(dev_class)){
-      unregister_chrdev(major_num, MODULE_NM);
+      unregister_chrdev_region(dev_num, 1);
       remove_proc_entry("fpga_intr", NULL);
       printk(KERN_ALERT "Fail to create device class\n");
       return -EBUSY;
   }
   
-  dev_dev = device_create(dev_class, NULL, MKDEV(major_num, 0), NULL, DEVICE_NM);
+  dev_dev = device_create(dev_class, NULL, dev_num, NULL, DEVICE_NM);
   if(IS_ERR(dev_dev)){
       class_destroy(dev_class);
-      unregister_chrdev(major_num, MODULE_NM);
+      unregister_chrdev_region(dev_num, 1);
       remove_proc_entry("fpga_intr", NULL);
       printk(KERN_ALERT "Fail to create device\n");
       return -EBUSY;
@@ -183,9 +188,9 @@ static int __init init_fpga_int(void)
                    "fpga_intr", NULL);
   if(errno){
     printk(KERN_ALERT "[KM %s] Can't get interrupt %d \n", MODULE_NM, INTERRUPT);
-    device_destroy(dev_class, MKDEV(major_num, 0));
+    device_destroy(dev_class, dev_num);
     class_destroy(dev_class);
-    unregister_chrdev(major_num, MODULE_NM);
+    unregister_chrdev_region(dev_num, 1);
     remove_proc_entry("fpag_intr", NULL);
     return -ENOMEM;
   }
@@ -203,9 +208,9 @@ static void __exit cleanup_fpga_int(void)
 {
   iounmap(fpga_int_va_base);
   free_irq(INTERRUPT,NULL);
-  device_destroy(dev_class, MKDEV(major_num, 0));
+  device_destroy(dev_class, dev_num);
   class_destroy(dev_class);
-  unregister_chrdev(major_num, MODULE_NM);
+  unregister_chrdev_region(dev_num, 1);
   remove_proc_entry("fpga_intr", NULL);
 }
 

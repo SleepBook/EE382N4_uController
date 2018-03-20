@@ -22,6 +22,7 @@
 
 struct timeval tv1, tv2;
 static volatile sig_atomic_t sigio_processed;
+static unsigned int input;
 
 int assertInt(int fd)
 {
@@ -123,12 +124,43 @@ int main(int argc, char **argv)
     (void)sigprocmask(SIG_SETMASK, &signal_mask, &signal_mask_old);
 
     //status = assertInt(fd);
-    int input = 0;
+    input = 0;
 
     //gettimeofday(&tv1);
     write(fd, &input, 4);
-    gettimeofday(&tv1);
+    //gettimeofday(&tv1);
+    unsigned int i;
     input = 1;
+    i = input + 1;
+    input = i - 1;
+    i = input + 1;
+    input = i + 1;
+    i = input - 1;
+    input = i - 1;
+    i = input + 1;
+    input = i - 1;
+    i = input + 1;
+    input = i + 1;
+    i = input - 1;
+    input = i - 1;
+    i = input + 1;
+    input = i - 1;
+    i = input + 1;
+    input = i + 1;
+    i = input - 1;
+    input = i - 1;
+    i = input + 1;
+    input = i - 1;
+    i = input + 1;
+    input = i - 1;
+    i = input - 1;
+    input = i + 1;
+    i = input + 1;
+    input = i - 1;
+    i = input + 1;
+    input = i - 1;
+    //printf("%d\n for the first time", input);
+    gettimeofday(&tv1);
     printf("%d\n", input);
     write(fd, &input, 4);
 
