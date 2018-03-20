@@ -20,26 +20,15 @@
 #define MAP_SIZE 4096UL
 #define MAP_MASK (MAP_SIZE - 1)     
 
-#define INT_TRIGGER 0x40000000
-
 struct timeval tv1, tv2;
 static volatile sig_atomic_t sigio_processed;
 
-int assertInt()
+int assertInt(int fd)
 {
-    volatile unsigned int *int_control;
-    int fd = open("/dev/mem", O_RDWR|O_SYNC);
-    //int fd = open("/dev/mem", O_RDWR|O_SYNC, S_IRUSR); 
-    if(fd == -1){
-        printf("unable to open /dev/mem");
-        exit(-1);
-    }
-
-    int_control = (unsigned int*)mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, INT_TRIGGER & ~MAP_MASK);
-    *int_control  = 1;
-
-    close(fd);
-    munmap(NULL, MAP_SIZE);
+    int input = 0;
+    write(fd, &input, 4);
+    input = 1;
+    write(fd, &input, 4);
     return 0;
 }
 
@@ -134,7 +123,7 @@ int main(int argc, char **argv)
     (void)sigprocmask(SIG_SETMASK, &signal_mask, &signal_mask_old);
 
     gettimeofday(&tv1);
-    status = assertInt();
+    status = assertInt(fd);
     if(sigio_processed == 0){
         sigsuspend(&signal_mask_most);
     }
