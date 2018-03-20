@@ -32,11 +32,12 @@
 
 #define MODULE_VER "1.0"
 #define INTERRUPT 164
-#define FPGA_INT_PA_BASE 0x43C10000
+#define FPGA_INT_PA_BASE (char*)0x43C10000
+#define MAP_SIZE 4096UL
 #define MODULE_NM "fpga_int"
 
 #undef DEBUG
-//#define DEBUG
+#define DEBUG
 
 static struct proc_dir_entry *proc_file;
 static struct fasync_struct *fasync_queue ;
@@ -44,9 +45,8 @@ static struct cdev chr_dev;  /* Global variable for the character device structu
 static struct class *p_devclass;  /* Global variable for the device class */
 static int errno;
 static dev_t dev_num;  /* Global variable for the first device number */
-
-static int fid;  /* opened file id */
-static char * fpga_int_va_base;
+static void __iomem * fpga_int_va_base;
+static int fpga_int_va_offset;
 
 
 /*
@@ -76,23 +76,7 @@ static int fpga_int_open (struct inode *inode, struct file *file) {
   printk(KERN_INFO "[KM %s] Inside %s_open \n", MODULE_NM, MODULE_NM);
 #endif
 
-  fid = open("/dev/mem", O_RDWR|O_SYNC);
-  if(0 > fid)
-  {
-      printk(KERN_ALERT "[KM %s] Open /dev/mem error: %d \n", MODULE_NM, fid);
-      return -1;
-  }
-  else  /* now /dev/mem is opened, do memory map */
-  {
-      fpga_int_va_base = (char *)mmap(
-              NULL,  /* let kernel to choose the virtual address */
-              4096UL,  /* always map one page */
-              PROT_READ|PROT_WRITE,  /* permissions protection */
-              MAP_SHARED,  /* share the mapping? */
-              fid,  /* target device node to map */
-              FPGA_INT_PA_BASE
-              );
-  }
+  fpga_int_va_offset = 0;
 
   return 0;
 }
@@ -105,6 +89,7 @@ static int fpga_int_release (struct inode *inode, struct file *file) {
 #ifdef DEBUG
   printk(KERN_INFO "[KM %s] Inside %s_release \n", MODULE_NM, MODULE_NM);
 #endif
+
   return 0;
 }
 
@@ -135,23 +120,62 @@ ssize_t fpga_int_read (
         size_t len,  /* the length of buffer */
         loff_t * offset  /* offset in the file, need explicitly point
                             out if it is not recorded in pf struct */
-        ) {
+        )
+{
+
+  int bytes_read = 0;
+  char * p_char = (char*) fpga_int_va_base + fpga_int_va_offset;
+
 #ifdef DEBUG
-  printk(KERN_INFO "[KM %s] Inside %s_read, fill %d char to %x \n",
+  printk(KERN_INFO "[KM %s] Inside %s_read, fill %d char to %p \n",
           MODULE_NM, MODULE_NM, len, usr_buf);
 #endif
-  int bytes_read = 0;
-  char * p_reg = *offset;
 
-  while(len)
+  while(len && p_char < (char*) fpga_int_va_base + MAP_SIZE)
   {
-      put_user(*(p_reg++), usr_buf++);
+      put_user(*(p_char++), usr_buf++);
       len--;
       bytes_read++;
-      *offset++;
   }
 
+  fpga_int_va_offset += bytes_read;
+
   return bytes_read;
+}
+
+/*
+ * This function is to map the write operation on the device node to device
+ */
+ssize_t fpga_int_write (
+        struct file * pf,  /* point to file struct */
+        const char * usr_buf,  /* the buffer holding data to fill */
+        size_t len,  /* the length of buffer */
+        loff_t * offset  /* offset in the file, need explicitly point
+                            out if it is not recorded in pf struct */
+        )
+{
+
+  int bytes_write = 0;
+  char * p_char = (char*) fpga_int_va_base + fpga_int_va_offset;
+
+#ifdef DEBUG
+  printk(KERN_INFO "[KM %s] Inside %s_write, fill %d char from %p \n",
+          MODULE_NM, MODULE_NM, len, usr_buf);
+#endif
+
+  while(len && p_char < (char*) fpga_int_va_base + MAP_SIZE)
+  {
+      get_user(*(p_char++), usr_buf++);
+#ifdef DEBUG
+      printk(KERN_INFO "[KM %s] write [%p]=%x to %p \n", MODULE_NM, usr_buf-1, *(p_char-1), p_char);
+#endif
+      len--;
+      bytes_write++;
+  }
+
+  //fpga_int_va_offset += bytes_write;
+
+  return bytes_write;
 }
 
 
@@ -165,7 +189,7 @@ struct file_operations fpga_int_fops = {
   .owner = THIS_MODULE,
   .llseek = NULL,
   .read = fpga_int_read,
-  .write = NULL,
+  .write = fpga_int_write,
   .poll = NULL,
   .unlocked_ioctl = NULL,
   .mmap = NULL,
@@ -197,7 +221,7 @@ static int __init init_fpga_int(void)
 #ifdef DEBUG
   printk("[KM %s] Start initializing \n", MODULE_NM);
 #endif
-	
+
   /* Step 0: create proc entry */
   proc_file = proc_create("fpga_int", 0444, NULL, &proc_fops );
   
@@ -216,7 +240,7 @@ static int __init init_fpga_int(void)
   }
 #ifdef DEBUG
   else
-    printk(KERN_ALERT "[KM %s] Major Number is %d \n", MODULE_NM, dev_num >> 20);
+    printk(KERN_INFO "[KM %s] Major Number is %d \n", MODULE_NM, dev_num >> 20);
 #endif
 
   /* Step 2: create character device class */
@@ -254,6 +278,13 @@ static int __init init_fpga_int(void)
     goto irq_request_failed;
   }
 
+ /* Step 6: map physical address to virtual address */
+ 
+  fpga_int_va_base = ioremap((resource_size_t)FPGA_INT_PA_BASE, MAP_SIZE);
+#ifdef DEBUG
+  printk(KERN_INFO "[KM %s] %p gets virtual address %p \n", MODULE_NM, FPGA_INT_PA_BASE, fpga_int_va_base);
+#endif
+
 /* everything initialized */
 #ifdef DEBUG
   printk(KERN_INFO "[KM %s] %s Initialized\n ",MODULE_NM, MODULE_VER);
@@ -285,6 +316,9 @@ proc_create_failed:
  
 static void __exit cleanup_fpga_int(void)
 {
+  /* Step -6: unmap  */
+  iounmap(fpga_int_va_base);
+
   /* Step -5: free the interrupt */
   free_irq(INTERRUPT,NULL);
 #ifdef DEBUG
