@@ -4,11 +4,13 @@
  * the kernel module handler will set a signal SIGIO, which is 
  * supposed to be captured by user-program
  *
+ * 
  * Wenqi Yin
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
@@ -18,10 +20,15 @@
 #include <sys/stat.h>  
 
 #define MAP_SIZE 4096UL
-#define MAP_MASK (MAP_SIZE - 1)     
+#define MAP_MASK (MAP_SIZE - 1) 
+#define NUM_MEASUREMENTS 10000
 
 struct timeval tv1, tv2;
 static volatile sig_atomic_t sigio_processed;
+
+int cmpfunc (const void *a, const void *b) {
+    return (*(int*)a - *(int*)b);
+}
 
 int assertInt(int fd)
 {
@@ -38,7 +45,7 @@ void sighandler(int signo)
     sigio_processed = 1;
     if (signo==SIGIO)
         gettimeofday(&tv2);
-    printf("APP:interrupt: Interrupt captured by SIGIO\n");
+    //printf("APP:interrupt: Interrupt captured by SIGIO\n");
     return;
 }
 
@@ -69,7 +76,7 @@ int main(int argc, char **argv)
     	/* rc = fd; */
     	exit (-1);
     }
-    printf("APP: /dev/fpga_int opened successfully\n");    	
+    //printf("APP: /dev/fpga_int opened successfully\n");    	
 
     /*
      * let the currecnt process to receive the SIGIO signal 
@@ -115,6 +122,18 @@ int main(int argc, char **argv)
     int interval;
     sigset_t signal_mask, signal_mask_old, signal_mask_most;
 
+    //latency 
+    int j, k;
+    int sum = 0;
+    double sum_sq_diff = 0, average = 0, std_dev = 0;
+    int latency[NUM_MEASUREMENTS];
+    
+    //csv op
+    FILE *fp;
+    const char *filename = "measure_int.csv";
+    fp = fopen(filename, "w+");
+    fprintf(fp, "# irq, latency\n");
+for(k = 0; k < NUM_MEASUREMENTS; k++) {
     //single round measuring
     sigio_processed = 0;
     (void)sigfillset(&signal_mask);
@@ -129,7 +148,7 @@ int main(int argc, char **argv)
     write(fd, &input, 4);
     gettimeofday(&tv1);
     input = 1;
-    printf("%d\n", input);
+    //printf("%d\n", input);
     write(fd, &input, 4);
 
     if(sigio_processed == 0){
@@ -138,9 +157,28 @@ int main(int argc, char **argv)
     (void)sigprocmask(SIG_SETMASK, &signal_mask_old, NULL);
     
     //INterval is in usec
-    printf("process wake up, interrupt handled correctly\n");
+    //printf("process wake up, interrupt handled correctly\n");
     interval = (int)((tv2.tv_sec - tv1.tv_sec)*1000000 + (tv2.tv_usec - tv1.tv_usec));
-    printf("The Interrupt took %d usecs to handle\n", interval);
+    //printf("The Interrupt took %d usecs to handle\n", interval);
+    latency[k] = interval;
+    sum += latency[k];
+    fprintf(fp, "%d,%d\n", k+1, latency[k]);
+}   
+    qsort(latency, NUM_MEASUREMENTS, sizeof(int), cmpfunc);
+    average = (double)sum / (double)NUM_MEASUREMENTS;
+    for(j = 0; j < NUM_MEASUREMENTS; j++) {
+        sum_sq_diff += (latency[j] - average) * (latency[j] - average);
+    }
+    
+    std_dev = sqrt((double)sum_sq_diff / (double)(NUM_MEASUREMENTS - 1));
+
+    printf("Minimum Latency:    %d\n", latency[0]);
+    printf("Maximum Latency:    %d\n", latency[NUM_MEASUREMENTS - 1]);
+    printf("Average Latency:    %.6f\n", average);
+    printf("Standard Deviation: %.6f\n", std_dev);
+    printf("Number of samples:  %d\n", NUM_MEASUREMENTS);
+    system("grep \"fpga_int\" /proc/interrupts");
+    fclose(fp);
     return 0;
 }
     
