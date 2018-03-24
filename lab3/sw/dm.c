@@ -33,7 +33,7 @@
 #define MAP_SIZE 4096UL
 #define MAP_MASK (MAP_SIZE - 1)
 
-int dm(unsigned int target_addr) {
+int dm(unsigned int target_addr, unsigned int *buffer) {
 
 /* 
 * This section of code is needed if you are accessing FLASH memory. the mmap() routine
@@ -93,7 +93,7 @@ unsigned int v;
       address = regs + (((target_addr) & MAP_MASK)>>2);    	
 	
 	  printf(" = 0x%.8x\n", *address);		// display register value
-      value = *address;	  
+      *buffer = *address;	  
 	//  lp_cnt -= 1;
 	//  offset  += 4; // WORD alligned
 	
@@ -108,5 +108,5 @@ unsigned int v;
 
 	munmap(NULL, MAP_SIZE);
 	
-	return value;
+	return 0;
 }
