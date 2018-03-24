@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #define MAP_SIZE 4096UL
 #define MAP_MASK (MAP_SIZE - 1)
@@ -62,7 +63,7 @@ unsigned int v;
 	int fd = open("/dev/mem", O_RDWR|O_SYNC, S_IRUSR);
 	volatile unsigned int *regs, *address ;
 	
-	unsigned int value;
+	//unsigned int value;
 /*
 	if(fd != -1){
 		printf(" Opened /dev/mem \n");

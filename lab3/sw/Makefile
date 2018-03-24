@@ -11,7 +11,7 @@ CFLAGS=  -I$(INCPATH) -L$(LIBPATH) $(PTHREADFLAGS)
 %.o: %.c
 	$(CC) $(CFLAGS) $^ -c -o $@
 
-main.out: main.o mem_test.o measure_int.o
+main.out: main.o mem_test.o measure_int.o random.o pm.o dm.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
