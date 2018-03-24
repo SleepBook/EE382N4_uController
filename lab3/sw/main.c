@@ -5,11 +5,13 @@
 #include <errno.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/resource.h>
 
 #define print_err_exit(err, msg) \
-    do { errno = err; perror(msg); if(t_info) free(t_info); exit(EXIT_FAILURE); } while (0)
+    do { errno = err; perror(msg); if(!lck_init_res) pthread_mutex_destroy(&lck); if(t_info) free(t_info); exit(EXIT_FAILURE); } while (0)
 
 #define NUM_CPUS 2
+#define MAIN_MAILBOX 1200
 
 typedef struct thread_info_s
 {
@@ -18,9 +20,13 @@ typedef struct thread_info_s
     int dly;  // delay, the count of loops per execution of the application
     void (*app)(void *);  // function pointer pointing to the application
     void * arg;  // arguments for the application
+    int * exe_cnt;  // main keeps counting how many times the app executed
+    pthread_mutex_t * exe_cnt_lck;  // lock on exe_cnt
 } thread_info_t;
 
 thread_info_t * t_info = NULL;  // global to avoid memory leakage
+pthread_mutex_t lck;
+int lck_init_res = -1;  // hasn't initialized yet
 
 // function to bind a thread to a specified cpu
 void bind_thread2cpu(int pid, int cid)
@@ -59,6 +65,9 @@ void * thread_repeat_app(void * arg)
         if(0 == cnt % pt_info->dly)
         {
             papp(pt_info->arg);
+            pthread_mutex_lock(pt_info->exe_cnt_lck);  // lock to inc
+            *(pt_info->exe_cnt) += 1;  // increase execution count
+            pthread_mutex_unlock(pt_info->exe_cnt_lck);  // release lock
         }
         ++cnt;
     }
@@ -74,6 +83,16 @@ extern void measure_int(void * arg);
 
 int main(int argc, char * argv[])
 {
+    int div = 5;  // control how long it takes to go next test
+    if(1 < argc)  // test speed are set via command
+        div = atoi(argv[1]);
+
+    // Initialize exe_cnt and its lock
+    int exe_cnt = 0;
+    lck_init_res = pthread_mutex_init(&lck, NULL);
+    if(lck_init_res)
+        print_err_exit(lck_init_res, "pthread_mutex_init()");
+
     // Initialize thread creation attributes
     pthread_attr_t attr;
     const int attr_init_res = pthread_attr_init(&attr);
@@ -97,6 +116,8 @@ int main(int argc, char * argv[])
     t_info[0].dly = 123456789;  // TODO: get it from LFSR
     t_info[0].app = mem_test;
     t_info[0].arg = NULL;
+    t_info[0].exe_cnt = &exe_cnt;
+    t_info[0].exe_cnt_lck = &lck;
     const int mem_test_res = pthread_create(
             &t_info[0].thread_id,
             &attr,
@@ -111,6 +132,8 @@ int main(int argc, char * argv[])
     t_info[1].dly = 987654321;  // TODO: get it from LFSR
     t_info[1].app = measure_int;
     t_info[1].arg = NULL;
+    t_info[1].exe_cnt = &exe_cnt;
+    t_info[1].exe_cnt_lck = &lck;
     const int measure_int_res = pthread_create(
             &t_info[1].thread_id,
             &attr,
@@ -126,12 +149,58 @@ int main(int argc, char * argv[])
         print_err_exit(destroy_res, "pthread_attr_destroy()");
 
     // Now join with each thread
-    const int join_mem_test = pthread_join(t_info[0].thread_id, NULL);
-    if(join_mem_test)
-        print_err_exit(join_mem_test, "pthread_join(mem_test)");
-    const int join_measure_int = pthread_join(t_info[1].thread_id, NULL);
-    if(join_measure_int)
-        print_err_exit(join_measure_int, "pthread_join(measure_int)");
+    //const int join_mem_test = pthread_join(t_info[0].thread_id, NULL);
+    //if(join_mem_test)
+    //    print_err_exit(join_mem_test, "pthread_join(mem_test)");
+    //const int join_measure_int = pthread_join(t_info[1].thread_id, NULL);
+    //if(join_measure_int)
+    //    print_err_exit(join_measure_int, "pthread_join(measure_int)");
+    //printf("Threads are joined\n");
+
+    setpriority(PRIO_PROCESS, getpid(), 19);  // be nice to children
+    while(1)
+    {
+        static int cnt_curr;  // current exe_cnt divided by DIV
+        static int cnt_old = 0;  // last query
+        pthread_mutex_lock(&lck);  // lock to inc
+        cnt_curr = exe_cnt / div;  // control the tests move on speed
+        pthread_mutex_unlock(&lck);  // release lock
+        if(cnt_curr != cnt_old)
+        {
+            switch(cnt_curr % 8)  // 8 tests
+            {
+                case 0:
+                    printf("PLL divider=%d, clock divider=%d\n", 40, 2);
+                    break;
+                case 1:
+                    printf("PLL divider=%d, clock divider=%d\n", 44, 2);
+                    break;
+                case 2:
+                    printf("PLL divider=%d, clock divider=%d\n", 20, 12);
+                    break;
+                case 3:
+                    printf("PLL divider=%d, clock divider=%d\n", 48, 3);
+                    break;
+                case 4:
+                    printf("PLL divider=%d, clock divider=%d\n", 2, 2);
+                    break;
+                case 5:
+                    printf("PLL divider=%d, clock divider=%d\n", 34, 20);
+                    break;
+                case 6:
+                    printf("PLL divider=%d, clock divider=%d\n", 1, 2);
+                    break;
+                case 7:
+                    printf("PLL divider=%d, clock divider=%d\n", 48, 2);
+                    break;
+                default:
+                    printf("PLL divider=??, clock divider=??\n");
+                    break;
+            }
+            cnt_old = cnt_curr;  // update
+        }
+        //system("sleep 5");
+    }
 
     free(t_info);
 

@@ -15,5 +15,5 @@ main.out: main.o mem_test.o measure_int.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
-	rm *.o main.out
+	rm -f *.o main.out
 
