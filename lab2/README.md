@@ -11,7 +11,11 @@ Lab 2
 - hw/ip\_repo.tar.gz
 - res/measure\_w\_load.csv
 - res/measure\_wo\_load.csv
+- res/minmax\_w\_load.csv
+- res/minmax\_wo\_load.csv
 - res/latencices.pdf
+- res/minmax\_w\_load.pdf
+- res/minmax\_wo\_load.pdf
 
 ### Design
 
@@ -117,6 +121,6 @@ To measure the latency, use the following command to execute it:
 During the execution, every `NUM_MEASUREMENTS` interrupts, it would print out statistics to terminal showing information like mean, max, min, stdev etc.
 And a file called `measure_int.csv` would be created in the same folder to hold the record for each measurement.
 
-There are two example csv files included in the res subfolder, one for measuring the latency with load, another for without load.
-And a plot based on the data in those two files is include in the res subfolder as well.
+There are four example csv files included in the res subfolder, two for measuring the latency with load, other two for without load.
+And three plot based on the data in those four files is include in the res subfolder as well.
 
