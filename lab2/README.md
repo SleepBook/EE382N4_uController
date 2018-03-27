@@ -11,7 +11,7 @@ Lab 2
 - hw/ip\_repo.tar.gz
 - res/measure\_w\_load.csv
 - res/measure\_wo\_load.csv
-- res/latencices.png
+- res/latencices.pdf
 
 ### Design
 
