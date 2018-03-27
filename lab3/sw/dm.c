@@ -89,11 +89,11 @@ unsigned int v;
     
     //while( lp_cnt) {
 	
-	  printf("0x%.4x" , target_addr);
+	  //printf("0x%.4x" , target_addr);
 
       address = regs + (((target_addr) & MAP_MASK)>>2);    	
 	
-	  printf(" = 0x%.8x\n", *address);		// display register value
+	  //printf(" = 0x%.8x\n", *address);		// display register value
       *buffer = *address;	  
 	//  lp_cnt -= 1;
 	//  offset  += 4; // WORD alligned

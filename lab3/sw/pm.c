@@ -85,14 +85,14 @@ unsigned int v;
 
     //while (lp_cnt) {
     
-	    printf("0x%.8x" , target_addr);
+	    //printf("0x%.8x" , target_addr);
 
         address = regs + (((target_addr) & MAP_MASK)>>2);    	
     	
 	//  value = strtoul(argv[2], 0, 0);
 		*address = value; 						// perform write command
 	
-	    printf(" = 0x%.8x\n", *address);		// display register value
+	    //printf(" = 0x%.8x\n", *address);		// display register value
 	    
 	//    lp_cnt -= 1;
 	//    offset  += 4; 							// WORD alligned
