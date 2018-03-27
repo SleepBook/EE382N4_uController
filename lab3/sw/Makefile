@@ -14,6 +14,15 @@ CFLAGS=  -I$(INCPATH) -L$(LIBPATH) $(PTHREADFLAGS)
 main.out: main.o mem_test.o measure_int.o random.o pm.o dm.o
 	$(CC) $(CFLAGS) $^ -o $@
 
+freq_test: sys_freq.o dm.o pm.o random.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+lab1.out: lab1.o random.o dm.o pm.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+lab2.out: lab2.o random.o dm.o pm.o
+	$(CC) $(CFLAGS) $^ -o $@ -lm
+
 clean:
-	rm -f *.o main.out
+	rm -f *.o main.out freq_test
 
