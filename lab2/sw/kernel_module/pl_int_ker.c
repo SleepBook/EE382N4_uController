@@ -37,7 +37,6 @@
 #define MODULE_NM "fpga_int"
 
 #undef DEBUG
-#define DEBUG
 
 static struct proc_dir_entry *proc_file;
 static struct fasync_struct *fasync_queue ;
