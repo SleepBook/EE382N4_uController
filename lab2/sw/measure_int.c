@@ -18,13 +18,15 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>  
+#include <assert.h>
 
 #define MAP_SIZE 4096UL
 #define MAP_MASK (MAP_SIZE - 1) 
 #define NUM_MEASUREMENTS 10000
 
 struct timeval tv1, tv2;
-static volatile sig_atomic_t sigio_processed;
+static volatile sig_atomic_t sigio_signal_processed;
+static int sigio_signal_count = 0;
 
 int cmpfunc (const void *a, const void *b) {
     return (*(int*)a - *(int*)b);
@@ -42,7 +44,8 @@ int assertInt(int fd)
 
 void sighandler(int signo)
 {
-    sigio_processed = 1;
+    sigio_signal_count++;
+    sigio_signal_processed = 1;
     if (signo==SIGIO)
         gettimeofday(&tv2);
     //printf("APP:interrupt: Interrupt captured by SIGIO\n");
@@ -105,7 +108,7 @@ int main(int argc, char **argv)
 
     if (fc == -1) {
     	perror("SETFL failed\n");
-    	rc = fd;
+    	/* rc = fd; */
     	exit (-1);
     }   
 
@@ -123,7 +126,7 @@ int main(int argc, char **argv)
     sigset_t signal_mask, signal_mask_old, signal_mask_most;
 
     //latency 
-    int j, k;
+    int j, k, loopcnt;
     int sum = 0;
     double sum_sq_diff = 0, average = 0, std_dev = 0;
     int latency[NUM_MEASUREMENTS];
@@ -133,9 +136,13 @@ int main(int argc, char **argv)
     const char *filename = "measure_int.csv";
     fp = fopen(filename, "w+");
     fprintf(fp, "# irq, latency\n");
+
+    for(loopcnt = 0; loopcnt < 300; loopcnt++)
+    {
+
 for(k = 0; k < NUM_MEASUREMENTS; k++) {
     //single round measuring
-    sigio_processed = 0;
+    sigio_signal_processed = 0;
     (void)sigfillset(&signal_mask);
     (void)sigfillset(&signal_mask_most);
     (void)sigdelset(&signal_mask_most, SIGIO);
@@ -151,10 +158,12 @@ for(k = 0; k < NUM_MEASUREMENTS; k++) {
     //printf("%d\n", input);
     write(fd, &input, 4);
 
-    if(sigio_processed == 0){
-        sigsuspend(&signal_mask_most);
+    if(sigio_signal_processed == 0){
+        rc = sigsuspend(&signal_mask_most);
+        assert(-1 == rc && sigio_signal_processed);
     }
     (void)sigprocmask(SIG_SETMASK, &signal_mask_old, NULL);
+    assert(sigio_signal_count == loopcnt * NUM_MEASUREMENTS + k + 1);
     
     //INterval is in usec
     //printf("process wake up, interrupt handled correctly\n");
@@ -178,6 +187,11 @@ for(k = 0; k < NUM_MEASUREMENTS; k++) {
     printf("Standard Deviation: %.6f\n", std_dev);
     printf("Number of samples:  %d\n", NUM_MEASUREMENTS);
     system("grep \"fpga_int\" /proc/interrupts");
+    printf("\n");
+    system("sleep 1");
+
+    }
+
     fclose(fp);
     return 0;
 }
