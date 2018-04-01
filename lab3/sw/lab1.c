@@ -129,7 +129,8 @@ int main(int argc, char *argv[])
             printf("MEM Test passed :) \n");
 
         /* delay and cleanup and setup for next test */
-        sleep(random32() % 10);
+        //sleep(random32() % 10);
+        sleep(1);
 
         for(mem_offset = 0; mem_offset < TEST_LENGTH; ++mem_offset)
             status[mem_offset].inter = 0;
