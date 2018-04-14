@@ -31,6 +31,7 @@ This module can be created with `make freq_test`, and described in the source fi
 The purpose of this module is to setting the system's frequency. 
 
 The module is implemented by accepting an integer variable between 1 - 8, which will index into an configuration table for the PLL_DIVIDER and Clock_DIVIDE which will decide the freqquency the system would be operating on. The table is shown as below:
+
 |Index| PLL Divider | Clock Divider | System Speed |
 |-----|-------------|---------------|--------------|
 |  1  |      40     |       2       |   666 MHz    |
