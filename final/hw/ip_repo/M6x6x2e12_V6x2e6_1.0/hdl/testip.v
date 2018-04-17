@@ -430,12 +430,12 @@ module testip(
       begin
         wait(s00_axi_aresetn);
         #500
-        axi_lite_write(0, 32'h000D0001);
+        axi_lite_write(0, 32'h000100D1);
         #1200
         subvector[0] = {6{32'h419C0000}};
         subvector[1] = {32'h43730000, 32'h43680000, 32'h435F0000, 32'h435D8000, 32'h43508000, 32'h43490000};
         subvector[2] = {{5{32'h00000000}}, 32'h40500000};
-        axi_lite_write(0, 32'h000D0001);
+        axi_lite_write(0, 32'h000100D1);
         #1200
         $finish;
       end

@@ -117,7 +117,7 @@
 	//-- Signals for user logic register space example
 	//------------------------------------------------
 	//-- Number of Slave Registers 4
-	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg0;  // CR: [24:16] width 6~180h, [0] running
+	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg0;  // CR: [31:16] iteration, [12:4] width 6~180h, [0] running
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg1;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg2;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg3;
@@ -413,7 +413,7 @@
 	// Add user logic here
 
     // Controller
-    wire zero_in, last, acc_valid, rows_done, finish;
+    wire zero_in, last, rows_over, finish;
     Controller #(
         .DELAY_MUL(9),
         .DELAY_ADD(12),
@@ -422,7 +422,8 @@
         .clk(S_AXI_ACLK),
         .rstn(S_AXI_ARESETN),
         .running(slv_reg0[0]),
-        .width(slv_reg0[24:16]),
+        .width(slv_reg0[12:4]),
+        .iteration(slv_reg0[31:16]),
         .mbram_clk(mbram_clk),
         .mbram_en(mbram_en),
         .mbram_addr(mbram_addr),
@@ -432,7 +433,7 @@
         .vbram_addr(vbram_addr),
         .zero_in(zero_in),
         .last(last),
-        .rows_done(rows_done),
+        .rows_over(rows_over),
         .finish(finish)
     );
 
@@ -440,7 +441,7 @@
     reg [1151:0] buf1152;  // buffer the 2304-bit 6x6 matrix from mBRAM
     reg [191:0] buf192;  // buffer the 192-bit 6 vector elements from vBRAM
     integer word_index;
-    always @ (posedge S_AXI_ACLK)
+    always @ (negedge S_AXI_ACLK)
     begin
         if(zero_in)
         begin
@@ -459,7 +460,7 @@
             end
         end
     end
-    always @ (posedge S_AXI_ACLK)
+    always @ (negedge S_AXI_ACLK)
     begin
         if(zero_in)
         begin
@@ -507,7 +508,7 @@
     // Output Latch
     always @ (negedge S_AXI_ACLK)
     begin
-        if(rows_done)
+        if(rows_over)
         begin
             for(word_index = 0; word_index < 6; word_index = word_index + 1)
             begin
