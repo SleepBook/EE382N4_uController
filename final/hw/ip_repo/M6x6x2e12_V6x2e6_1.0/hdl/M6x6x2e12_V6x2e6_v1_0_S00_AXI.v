@@ -4,6 +4,9 @@
 	module M6x6x2e12_V6x2e6_v1_0_S00_AXI #
 	(
 		// Users to add parameters here
+        parameter integer DELAY_MUL = 7,
+        parameter integer DELAY_ADD = 12,
+        parameter integer DELAY_ACC = 38,
 
 		// User parameters ends
 		// Do not modify the parameters beyond this line
@@ -413,11 +416,12 @@
 	// Add user logic here
 
     // Controller
-    wire zero_in, last, rows_over, finish;
+    wire zero_in;
+    wire last, rows_over, finish;
     Controller #(
-        .DELAY_MUL(9),
-        .DELAY_ADD(12),
-        .DELAY_ACC(38)
+        .DELAY_MUL(DELAY_MUL),
+        .DELAY_ADD(DELAY_ADD),
+        .DELAY_ACC(DELAY_ACC)
     ) ctrl(
         .clk(S_AXI_ACLK),
         .rstn(S_AXI_ARESETN),
@@ -437,7 +441,7 @@
         .finish(finish)
     );
 
-    // Input Buffer
+    // Input Buffers
     reg [1151:0] buf1152;  // buffer the 2304-bit 6x6 matrix from mBRAM
     reg [191:0] buf192;  // buffer the 192-bit 6 vector elements from vBRAM
     integer word_index;
@@ -479,6 +483,34 @@
             end
         end
     end
+    /*
+    always @ (negedge S_AXI_ACLK)
+    begin
+        if(zero_in[1])
+        begin
+            buf1152[1] <= 1152'd0;
+            buf192[1] <= 192'd0;
+        end
+        else
+        begin
+            buf1152[1151:0][1] <= buf1152[1151:0][2];
+            buf192[191:0][1] <= buf192[191:0][2];
+        end
+    end
+    always @ (negedge S_AXI_ACLK)
+    begin
+        if(zero_in[0])
+        begin
+            buf1152[0] <= 1152'd0;
+            buf192[0] <= 192'd0;
+        end
+        else
+        begin
+            buf1152[1151:0][0] <= buf1152[1151:0][1];
+            buf192[191:0][0] <= buf192[191:0][1];
+        end
+    end
+    */
     // Multiplier
     wire [1151:0] pdt1152;  // 1152-bit 6x6 products from multipliers
     MVmul_6_6 mul(
@@ -490,7 +522,9 @@
     );
     // Adder Tree
     wire [191:0] sum192;  // 192-bit 6x1 sums from adder tree
-    AdderTree_6_6 adder_tree(
+    AdderTree_6_6 # (
+        .DELAY_ADD(DELAY_ADD)
+    ) adder_tree(
         .clk(S_AXI_ACLK),
         .valid(),
         .M1152(pdt1152),

@@ -20,7 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module AdderTree_1_6(
+module AdderTree_1_6 # (
+    parameter integer DELAY_ADD = 12
+)
+(
     input clk,
     output valid,
     input [191:0] R192,
@@ -86,7 +89,7 @@ module AdderTree_1_6(
         .m_axis_result_tready(1'b1)
     );
     FP_dly # (
-        .DELAY(12)
+        .DELAY(DELAY_ADD)
     ) dly(
         .clk(clk),
         .in(sum45),

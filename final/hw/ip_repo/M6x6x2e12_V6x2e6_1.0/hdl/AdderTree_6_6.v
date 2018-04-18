@@ -20,7 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module AdderTree_6_6(
+module AdderTree_6_6 # (
+    parameter integer DELAY_ADD = 12
+)
+(
     input clk,
     output wire valid,
     input [1151:0] M1152,
@@ -34,7 +37,9 @@ module AdderTree_6_6(
     generate
     for (idx = 0; idx < 6; idx = idx + 1)
     begin
-        AdderTree_1_6 adder_tree (
+        AdderTree_1_6 # (
+            .DELAY_ADD(DELAY_ADD)
+        ) adder_tree (
             .clk(clk),
             .valid(valids[idx]),
             .R192(
