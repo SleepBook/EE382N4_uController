@@ -2,9 +2,28 @@
 #include "382dma.h"
 
 #define MAP_SIZE 4096UL
-#define MAP_MASK (MAP_SIZE)
+#define MAP_MASK (MAP_SIZE - 1)
 
-void adapter_set(int* va, int mode, unsigned int addr)
+#define DMA_ADDR 0x40400000
+#define SRC_ADDR 0x1ffff000
+#define BRAM_ADDR 0x43c10000
+#define BRAM_CNTL 0x43c00000
+#define ADAP_CNTL 0x43c20000
+
+#define CP_LEN 288
+
+enum{
+    WRITE_MODE,
+    READ_MODE,
+    BRAM_START_ADDR,
+    BRAM_BOUND_ADDR,
+    TRIG, 
+    UNTRIG
+};
+
+
+
+void setAdapter(int* va, int mode, unsigned int addr)
 {
     switch(mode){
         case WRITE_MODE:
@@ -12,6 +31,14 @@ void adapter_set(int* va, int mode, unsigned int addr)
             break;
         case READ_MODE:
             *va = 0;
+            break;
+        case TRIG:
+            if((*va) & 1) *va = 3;
+            else *va = 2;
+            break;
+        case UNTRIG:
+            if((*va) & 1) *va = 1;
+            else *va = 0;
             break;
         case BRAM_START_ADDR:
             *(va+1) = addr;
@@ -29,7 +56,7 @@ int main() {
     int dh = open("/dev/mem", O_RDWR | O_SYNC); // Open /dev/mem which represents the whole physical memory
     unsigned int* va_dma_cntl = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, DMA_ADDR); // Memory map AXI Lite register block
     unsigned int* va_src_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, SRC_ADDR); // Memory map source address
-    unsigned int* va_dst_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, DST_ADDR); // Memory map source address
+    //unsigned int* va_dst_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, DST_ADDR); // Memory map source address
     unsigned int* va_bram_addr =  mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, BRAM_ADDR); 
     unsigned int* va_bram_cntl =  mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, BRAM_CNTL); 
     unsigned int* va_adapter_cntl =  mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, ADAP_CNTL); 
@@ -47,13 +74,7 @@ int main() {
     dma_s2mm_status(va_dma_cntl);
     dma_mm2s_status(va_dma_cntl);
 
-    printf("Setting up adapter\n");
-    adapter_set(va_adapter_cntl, WRITE_MODE, 0);
-
-    printf("setting up bram cntl\n");
-    *va_bram_cntl = 0x00000001;  // trigger the reading of the bram[0]
-
-   
+       
     //write src data
     int i;
     for(i=0;i<72;i++){
@@ -64,6 +85,13 @@ int main() {
         printf("%d ", va_src_addr[i]);
     }
     printf("\n");
+
+    //setting up the adpater
+    setAdapter(va_adapter_cntl, WRITE_MODE, 0);
+    setAdapter(va_adapter_cntl, BRAM_START_ADDR, 0);
+    setAdapter(va_adapter_cntl, BRAM_BOUND_ADDR, 16);
+    setAdapter(va_adapter_cntl, TRIG, 0);
+    setAdapter(va_adapter_cntl, UNTRIG, 0);
 
 
     printf("Writing source address...\n");
@@ -82,17 +110,17 @@ int main() {
 
     printf("Waiting for MM2S synchronization...\n");
     dma_mm2s_sync(va_dma_cntl);
+    
+    //read back
+    printf("setting up bram cntl\n");
+    *va_bram_cntl = 0x00000001;  // trigger the reading of the bram[0]
 
-
-    //readback the data
     for(i=0;i<72;i++){
         printf("%d ",va_bram_addr[i]);
     }
     printf("\n");
 
-
     /*
-
     //read from BRAM test
     //prepare the data(this can be commented to let it happen through dma write
 

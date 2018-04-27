@@ -17,13 +17,6 @@
 #define S2MM_DESTINATION_ADDRESS 0x48
 #define S2MM_LENGTH 0x58
 
-enum{
-    WRITE_MODE,
-    READ_MODE,
-    BRAM_START_ADDR,
-    BRAM_BOUND_ADDR};
-
-
 unsigned int dma_set(unsigned int* dma_virtual_address, int offset, unsigned int value);
 
 unsigned int dma_get(unsigned int* dma_virtual_address, int offset);

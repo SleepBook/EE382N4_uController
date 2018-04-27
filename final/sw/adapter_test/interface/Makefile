@@ -1,5 +1,5 @@
 all:
-	gcc interface.c -o test
+	gcc interface.c 382dma.c -o test
 
 .PHONY:clean
 
