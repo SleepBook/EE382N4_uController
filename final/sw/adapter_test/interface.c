@@ -85,7 +85,7 @@ int main() {
         printf("%d ", va_src_addr[i]);
     }
     printf("\n");
-
+;
     //setting up the adpater
     setAdapter(va_adapter_cntl, WRITE_MODE, 0);
     setAdapter(va_adapter_cntl, BRAM_START_ADDR, 0);
