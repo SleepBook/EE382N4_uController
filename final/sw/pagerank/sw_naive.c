@@ -5,9 +5,9 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define DEBUG
+//#define DEBUG
 
-int PageRank_Naive(float** mat, float* vec, int iter, int size, long* time)
+int PageRank_Naive(float** mat, float** vec, int iter, int size, long* time)
 {
     int i, j, k;
     float* buf, *loc;
@@ -21,13 +21,13 @@ int PageRank_Naive(float** mat, float* vec, int iter, int size, long* time)
         for(j=0;j<size;j++){
             temp = 0;
             for(k=0;k<size;k++){
-                temp += mat[j][k] * vec[k];
+                temp += mat[j][k] * (*vec)[k];
             }
             buf[j] = temp;
         }
         loc = buf;
-        buf = vec;
-        vec = loc;
+        buf = *vec;
+        *vec = loc;
     }
     gettimeofday(&end, NULL);
     free(buf);
@@ -90,28 +90,7 @@ int main(int argc, char** argv)
     }
 #endif
 
-    /*
-    fin = fopen(argv[2], "rb");
-    if(!fin){
-        printf("open file error\n");
-        for(i=0;i<size;i++){
-            free(mat[i]);
-        }
-        free(mat);
-        return -1;
-    }
-    
-    fread(&i, 4, 1, fin);
-    if(i != size){
-        printf("vector size doesn't match matrix\n");
-        for(i=0;i<size;i++){
-            free(mat[i]);
-        }
-        free(mat);
-        fclose(fin);
-        return -1;
-    }
-    */
+
     vec = (float*)malloc(sizeof(float)*size);
     if(!vec){
         for(i=0;i<size;i++){
@@ -130,13 +109,13 @@ int main(int argc, char** argv)
         printf("%f ", vec[i]);
     }
     printf("\n");
-#endif
 
     printf("start computing for %d interations\n",iter);
+#endif
 
     long duration;
     int err;
-    err = PageRank_Naive(mat, vec, iter, size, &duration);
+    err = PageRank_Naive(mat, &vec, iter, size, &duration);
     printf("Computing done, use time %ld us\n", duration);
     printf("the result vector is:\n");
     for(i=0;i<size;i++){
