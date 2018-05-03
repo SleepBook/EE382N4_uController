@@ -6,7 +6,6 @@
 #include <sys/time.h>
 
 //#define DEBUG
-
 int PageRank_Naive(float** mat, float** vec, int iter, int size, long* time)
 {
     int i, j, k;
@@ -34,6 +33,12 @@ int PageRank_Naive(float** mat, float** vec, int iter, int size, long* time)
     *time = end.tv_sec*1000000 + end.tv_usec - start.tv_sec*1000000 - start.tv_usec;
 }
 
+long computeTime(struct timeval* start, struct timeval* end)
+{
+    long interval;
+    interval = ((end->tv_sec - start->tv_sec) * 1000000 + end->tv_usec - start->tv_usec);
+    return interval;
+}
 
 //read from some binary file of a matrix represent some graph
 //first para is the matrix binary file, 
@@ -44,7 +49,9 @@ int main(int argc, char** argv)
         printf("Correct input tool matfile vecfile iter\n");
         return -1;
     }
+    struct timeval start, end;
 
+    gettimeofday(&start, NULL);
     int iter = atoi(argv[2]);
     FILE* fin = fopen(argv[1], "rb");
     if(!fin){
@@ -116,18 +123,24 @@ int main(int argc, char** argv)
     long duration;
     int err;
     err = PageRank_Naive(mat, &vec, iter, size, &duration);
+#ifdef DEBUG
     printf("Computing done, use time %ld us\n", duration);
     printf("the result vector is:\n");
     for(i=0;i<size;i++){
         printf("%f ", vec[i]);
     }
     printf("\n");
+#endif
 
     for(i=0;i<size;i++){
         free(mat[i]);
     }
     free(mat);
     free(vec);
+    gettimeofday(&end, NULL);
+    long intv = computeTime(&start, &end); 
+    printf("the total time is %ld\n", intv);
+    printf("Computing done, use time %ld us\n", duration);
     return 0;
 }
 
