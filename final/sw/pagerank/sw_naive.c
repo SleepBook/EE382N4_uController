@@ -138,6 +138,11 @@ int main(int argc, char** argv)
     int err;
     err = PageRank_Naive(mat, vec, iter, size, &duration);
     printf("Computing done, use time %ld us\n", duration);
+    printf("the result vector is:\n");
+    for(i=0;i<size;i++){
+        printf("%f ", vec[i]);
+    }
+    printf("\n");
 
     for(i=0;i<size;i++){
         free(mat[i]);
