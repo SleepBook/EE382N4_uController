@@ -56,10 +56,17 @@ int main() {
     int dh = open("/dev/mem", O_RDWR | O_SYNC); // Open /dev/mem which represents the whole physical memory
     unsigned int* va_dma_cntl = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, DMA_ADDR); // Memory map AXI Lite register block
     unsigned int* va_src_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, SRC_ADDR); // Memory map source address
-    //unsigned int* va_dst_addr  = mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, DST_ADDR); // Memory map source address
     unsigned int* va_bram_addr =  mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, BRAM_ADDR); 
     unsigned int* va_bram_cntl =  mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, BRAM_CNTL); 
     unsigned int* va_adapter_cntl =  mmap(NULL, 65535, PROT_READ | PROT_WRITE, MAP_SHARED, dh, ADAP_CNTL); 
+    //setting up the adpater
+
+    setAdapter(va_adapter_cntl, WRITE_MODE, 0);
+    setAdapter(va_adapter_cntl, BRAM_START_ADDR, 0);
+    setAdapter(va_adapter_cntl, BRAM_BOUND_ADDR, 16);
+    setAdapter(va_adapter_cntl, TRIG, 0);
+    setAdapter(va_adapter_cntl, UNTRIG, 0);
+
 
     //initializing 
     printf("Resetting DMA\n");
@@ -78,20 +85,13 @@ int main() {
     //write src data
     int i;
     for(i=0;i<72;i++){
-        va_src_addr[i]= i;
+        va_src_addr[i]= i + 1;
     }
 
     for(i=0;i<72;i++){
         printf("%d ", va_src_addr[i]);
     }
     printf("\n");
-;
-    //setting up the adpater
-    setAdapter(va_adapter_cntl, WRITE_MODE, 0);
-    setAdapter(va_adapter_cntl, BRAM_START_ADDR, 0);
-    setAdapter(va_adapter_cntl, BRAM_BOUND_ADDR, 16);
-    setAdapter(va_adapter_cntl, TRIG, 0);
-    setAdapter(va_adapter_cntl, UNTRIG, 0);
 
 
     printf("Writing source address...\n");
@@ -112,40 +112,32 @@ int main() {
     dma_mm2s_sync(va_dma_cntl);
     
     //read back
-    printf("setting up bram cntl\n");
-    *va_bram_cntl = 0x00000001;  // trigger the reading of the bram[0]
 
+    printf("writing to bram done, use lite port to check the content\n");
+    int index;
     for(i=0;i<72;i++){
-        printf("%d ",va_bram_addr[i]);
+        index = i/36;
+        *va_bram_cntl = (index) << 8 | 0x01;
+        printf("%d ",*(va_bram_addr+i%36));
     }
     printf("\n");
 
-    /*
-    //read from BRAM test
-    //prepare the data(this can be commented to let it happen through dma write
 
-    printf("setting up bram cntl\n");
-    //last bit trig
-    //last but one bit 1/0 w/r
-    //rest are address
-    *va_bram_cntl = 0x00000001;  // trigger the reading of the bram[0]
-
-   
-    //write src data
-    for(i=0;i<72;i++){
-        va_bram_addr[i]= i;
-    }
-
-    for(i=0;i<72;i++){
-        printf("%d ", va_bram_addr[i]);
-    }
-    printf("\n");
 
     //setting up the bram_init
+    setAdapter(va_adapter_cntl, BRAM_START_ADDR, 0);
+    setAdapter(va_adapter_cntl, BRAM_BOUND_ADDR, 1);
+    setAdapter(va_adapter_cntl, WRITE_MODE, 0);
+    setAdapter(va_adapter_cntl, TRIG, 0);
+    setAdapter(va_adapter_cntl, UNTRIG, 0);
+    setAdapter(va_adapter_cntl, READ_MODE, 0);
 
-    adapter_set(va_adapter_cntl, READ_MODE, 0);
-    adapter_set(va_adapter_cntl, BRAM_START_ADDR, 0);
-    adapter_set(va_adapter_cntl, BRAM_BOUND_ADDR, 2);
+    printf("clear the space \n");
+    for(i=0;i<72;i++){
+        va_src_addr[i]= 0;
+    }
+    printf("\n");
+
 
     //initialization
     dma_set(va_dma_cntl, S2MM_CONTROL_REGISTER, 4);
@@ -153,7 +145,7 @@ int main() {
     dma_set(va_dma_cntl, S2MM_CONTROL_REGISTER, 0);
     dma_s2mm_status(va_dma_cntl);
 
-    dma_set(va_dma_cntl, S2MM_DESTINATION_ADDRESS, DST_ADDR); // Write destination address
+    dma_set(va_dma_cntl, S2MM_DESTINATION_ADDRESS, SRC_ADDR); // Write destination address
     dma_s2mm_status(va_dma_cntl);
 
     printf("Starting S2MM channel with all interrupts masked...\n");
@@ -164,20 +156,15 @@ int main() {
     printf("s2mm length setting\n");
     dma_s2mm_status(va_dma_cntl);
 
-    printf("Waiting for MM2S synchronization...\n");
-    dma_mm2s_sync(va_dma_cntl);
-
     printf("Waiting for S2MM sychronization...\n");
-    dma_s2mm_sync(va_dma_cntl); // If this locks up make sure all memory ranges are assigned under Address Editor!
-
+    dma_s2mm_sync(va_dma_cntl); 
     dma_s2mm_status(va_dma_cntl);
 
     //check the readback 
+    printf("the final dst data is:\n");
     for(i=0;i<72;i++){
-        printf("%d ", va_dst_addr[i]);
+        printf("%d ", va_src_addr[i]);
     }
     printf("\n");
-    */
-
     return 0;
 }
