@@ -117,7 +117,7 @@ int main(int argc, char * argv[])
 
     // Prepare thread information for memory test application in t_info[0]
     t_info[0].core_id = 0;  // run memoty test on CPU0
-    t_info[0].dly = random10() + 0x512;
+    t_info[0].dly = (random32() & 0xFFF) + 0x512;
     t_info[0].app = mem_test;
     t_info[0].arg = NULL;
     t_info[0].exe_cnt = &exe_cnt;
@@ -133,7 +133,7 @@ int main(int argc, char * argv[])
 
     // Prepare thread information for measure int application in t_info[1]
     t_info[1].core_id = 1;  // run measure interrupt latency on CPU1
-    t_info[1].dly = random10() + 0x512;
+    t_info[1].dly = (random32() & 0xFFF) + 0x512;
     t_info[1].app = measure_int;
     t_info[1].arg = NULL;
     t_info[1].exe_cnt = &exe_cnt;

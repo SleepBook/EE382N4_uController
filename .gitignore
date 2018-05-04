@@ -5,3 +5,7 @@
 *.symvers
 *.cmd
 .tmp_versions
+**/*.png
+**/*.pdf
+**/*.out
+**/*.log

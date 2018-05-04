@@ -17,7 +17,7 @@
 #define ARM_PLL_BYPASS_MASK 0x00000010 // 4
 #define ARM_PLL_BYPASS_QUAL_MASK 0x00000008 // 3
 #define ARM_PLL_RESET_MASK 0x00000001 // 0
-#define PLL_STATUS_MASK 0x00000008 // 3
+#define PLL_STATUS_MASK 0x00000001 // 0
 #define ARM_CLK_CTRL_MASK 0x00003F00 // 13:8
 
 extern int pm(unsigned int target_addr, unsigned int value);
@@ -95,10 +95,13 @@ int main(int argc, char* argv[]){
 
     // 4. Read PLL_STATUS [3] to verify
     unsigned int pll_status;
-    dm(PLL_STATUS, &pll_status);
-    if((pll_status & PLL_STATUS_MASK) == 0)
-        printf("ERROR: PLL is not locked and not in bypass\n");
-    else printf("Successfully lock and bypass PLL\n");
+    do
+    {
+        dm(PLL_STATUS, &pll_status);
+        if((pll_status & PLL_STATUS_MASK) == 0)
+            printf("ERROR: PLL is not locked and not in bypass\n");
+        else printf("Successfully lock and bypass PLL\n");
+    }while(!(pll_status & PLL_STATUS_MASK));
 
     // 6. Change ARM_CLK_CTRL // test the new sequence
     unsigned int clk_div;

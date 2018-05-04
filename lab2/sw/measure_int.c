@@ -135,7 +135,8 @@ int main(int argc, char **argv)
     FILE *fp;
     const char *filename = "measure_int.csv";
     fp = fopen(filename, "w+");
-    fprintf(fp, "# irq, latency\n");
+    //fprintf(fp, "# irq, latency\n");
+    fprintf(fp, "Min, Max\n");
 
     for(loopcnt = 0; loopcnt < 300; loopcnt++)
     {
@@ -171,7 +172,7 @@ for(k = 0; k < NUM_MEASUREMENTS; k++) {
     //printf("The Interrupt took %d usecs to handle\n", interval);
     latency[k] = interval;
     sum += latency[k];
-    fprintf(fp, "%d,%d\n", k+1, latency[k]);
+    //fprintf(fp, "%d,%d\n", k+1, latency[k]);
 }   
     qsort(latency, NUM_MEASUREMENTS, sizeof(int), cmpfunc);
     average = (double)sum / (double)NUM_MEASUREMENTS;
@@ -187,6 +188,7 @@ for(k = 0; k < NUM_MEASUREMENTS; k++) {
     printf("Standard Deviation: %.6f\n", std_dev);
     printf("Number of samples:  %d\n", NUM_MEASUREMENTS);
     system("grep \"fpga_int\" /proc/interrupts");
+    fprintf(fp, "%d,%d\n", latency[0], latency[NUM_MEASUREMENTS - 1]);
     printf("\n");
     system("sleep 1");
 

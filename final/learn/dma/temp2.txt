@@ -1,0 +1,15 @@
+Source memory block:      afbeadde 00000000 00000000 00000000 00000000 afbeadde 00000000 00000000 
+Destination memory block: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 
+Stream to memory-mapped status (0x00000001@0x34): halted
+Memory-mapped to stream status (0x00000001@0x04): halted
+Stream to memory-mapped status (0x00000001@0x34): halted
+Memory-mapped to stream status (0x00000001@0x04): halted
+Stream to memory-mapped status (0x00000001@0x34): halted
+Memory-mapped to stream status (0x00000001@0x04): halted
+Stream to memory-mapped status (0x00000000@0x34): running
+Memory-mapped to stream status (0x00000000@0x04): running
+Stream to memory-mapped status (0x00000000@0x34): running
+Memory-mapped to stream status (0x00000000@0x04): running
+Stream to memory-mapped status (0x00001002@0x34): running idle IOC_Irq
+Memory-mapped to stream status (0x00001002@0x04): running idle IOC_Irq
+Destination memory block: afbeadde 00000000 00000000 00000000 00000000 afbeadde 00000000 00000000 

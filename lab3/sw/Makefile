@@ -12,7 +12,7 @@ CFLAGS=  -I$(INCPATH) -L$(LIBPATH) $(PTHREADFLAGS)
 	$(CC) $(CFLAGS) $^ -c -o $@
 
 main.out: main.o mem_test.o measure_int.o random.o pm.o dm.o
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ -lm
 
 freq_test: sys_freq.o dm.o pm.o random.o
 	$(CC) $(CFLAGS) $^ -o $@

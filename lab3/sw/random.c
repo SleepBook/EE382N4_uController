@@ -3,8 +3,8 @@
 #define LFSR32CR 0x43C01008
 #define LFSR32DR 0x43C01000
 
-extern int pm(unsigned int target_addr, unsigned int value);
-extern int dm(unsigned int target_addr, unsigned int *buffer);
+extern int pm(unsigned int paddr, unsigned int uval);
+extern int dm(unsigned int paddr, unsigned int *ubuf);
 
 unsigned int random10()
 {

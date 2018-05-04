@@ -50,7 +50,6 @@ void sighandler(int signo)
     return;
 }
 
-extern unsigned int random10();
 extern unsigned int random32();
 
 int main(int argc, char **argv)
@@ -189,7 +188,6 @@ for(k = 0; k < NUM_MEASUREMENTS; k++) {
     printf("\n");
 
     sleep(random32() % 10);
-    //sleep(random10() % 10 + 1);
 
     }
 

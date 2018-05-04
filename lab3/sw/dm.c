@@ -29,77 +29,38 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <assert.h>
 #include <unistd.h>
 
 #define MAP_SIZE 4096UL
 #define MAP_MASK (MAP_SIZE - 1)
 
-int dm(unsigned int target_addr, unsigned int *buffer) {
+int dm(unsigned int paddr, unsigned int * ubuf) {
 
-/* 
-* This section of code is needed if you are accessing FLASH memory. the mmap() routine
-* seems to leave the flash in a strange state after the first access
-*/
-
-unsigned int v;
-        int mtd= open("/dev/mmcblk0p1", O_RDONLY|O_SYNC);
-/*
-        if(mtd){ 
-    		printf("Opened /dev/mmcblk0p1\n");
-	}
-*/
-        if(!mtd){
-          printf("Unable to open /dev/mmcblk0p1.  Ensure it exists (major=31, minor=0)\n");
-             return -1;
-        }
-        if (    lseek(mtd,  0x00000000 ,SEEK_SET) > -1){
-                read(mtd, &v, 4);
-        }
-         else {printf("Unable to move to start of memory for /dev/mmcblk0p1.\n");}
-
-
-        close(mtd);
-	
 	int fd = open("/dev/mem", O_RDWR|O_SYNC, S_IRUSR);
-	volatile unsigned int *regs, *address ;
+	unsigned int *regs, *address ;
 	
-	//unsigned int value;
-/*
-	if(fd != -1){
-		printf(" Opened /dev/mem \n");
-	}
-*/
+	unsigned int offset = paddr & MAP_MASK;
+
 	if(fd == -1)
 	{
 		printf("Unable to open /dev/mem.  Ensure it exists (major=1, minor=1)\n");
 		return -1;
 	}	
-
-	/*if ((argc != 2) && (argc != 3))
-	{
-		printf("USAGE:  dm (address) (repeat) :\n");
-		close(fd);
-		return -1;
-	}
-	*/
-
-	//offset = 0;
     
-    regs = (unsigned int *)mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, target_addr & ~MAP_MASK);	
+    regs = (unsigned int *)mmap(NULL, MAP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, paddr & ~MAP_MASK);	
     
-    //while( lp_cnt) {
 	
-	  //printf("0x%.4x" , target_addr);
+	//printf("0x%.4x" , (paddr));
 
-      address = regs + (((target_addr) & MAP_MASK)>>2);    	
+    address = regs + (offset>>2);    	
 	
-	  //printf(" = 0x%.8x\n", *address);		// display register value
-      *buffer = *address;	  
-	//  lp_cnt -= 1;
-	//  offset  += 4; // WORD alligned
+	//printf(" = 0x%.8x\n", *address);		// display register value
 	
-	//} // End while loop
-			
+    *ubuf = *address;
+
+    munmap(regs, MAP_SIZE);
+
 	int temp = close(fd);
 	if(temp == -1)
 	{
@@ -107,7 +68,24 @@ unsigned int v;
 		return -1;
 	}	
 
-	munmap(NULL, MAP_SIZE);
+	//munmap(NULL, MAP_SIZE);
 	
 	return 0;
 }
+
+//int main(int argc, char * argv[])
+//{
+//    unsigned int addr = 0x43C00000;
+//    unsigned int data;
+//
+//    while(1)
+//    {
+//        if(1 < argc)
+//            addr = strtoul(argv[1], 0, 0);
+//
+//        assert(0 == dm(addr, &data));
+//        printf("0x%08x=0x%08x\n", addr, data);
+//    }
+//
+//    return 0;
+//}
