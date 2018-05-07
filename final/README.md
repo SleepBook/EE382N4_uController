@@ -1,10 +1,17 @@
-Final Project
------
+#Final Project
 
-### Files
+This directory contains the final project for EE382N.4 at UT Austin for Fall 18. 
 
-- README.md
-- software/
-- accel\_HLS/
-- accel\_V1/
-- accel\_V2/
+This project implement accelerators for PageRank algorithm. There are 3 versions of accelerator design. 
+    - RTL Accelerator Version 1: The first version of our custom designed accelerator. Contained under the subdirectory `accel_V1`. For more detailed instruction on how to build that accelerator, refer to the ReadMe under that sub-directory.
+    - RTL Accelerator Version 2: The second version of the accelerator, which draws its inspiration from the systolic array idea. This subproject now is still under test. For more informaiton, refer to that sub-directory
+    - HLS Accelerator: an accelerator build from Xilinx HLS, refer to that directroy for information on how to build and test that project. 
+
+The `sw` sub-directory contains a naive pure software implementation of PageRank algorithm. Together with some other helper files(An sample code for how to run DMA on zynq)
+
+
+The presentation slides is available [here](https://docs.google.com/presentation/d/1YrgV9XGWgNsmT-i3s5TgwWeNVSpzMtdd6_xbgWGxpgQ/edit?usp=sharing)
+
+We are working on a more detailed report on this project, which is supposed to be available soon. 
+
+The project is hosted at [https://github.com/SleepBook/EE382N4\_uController](https://github.com/SleepBook/EE382N4_uController)
