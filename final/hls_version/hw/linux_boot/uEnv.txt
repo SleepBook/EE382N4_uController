@@ -1,0 +1,7 @@
+ethaddr=00:0a:35:00:a4:20
+kernel_image=uImage.bak
+devicetree_image=hls_mv_demo.dtb
+bootargs=console=ttyPS0,115200 root=/dev/mmcblk0p2 rw rootwait earlyprintk uio_pdrv_genirq.of_id=generic-uio"
+aa=fatload mmc 0 0x1000000 hls_mv_demo.bit
+bb=fpga loadb 0 0x1000000 0x03dbb6a
+uenvcmd=echo Copying Linux from SD to RAM... && ${aa} && ${bb} && fatload mmc 0 0x3000000 ${kernel_image} && fatload mmc 0 0x2A00000 ${devicetree_image} && bootm 0x3000000 - 0x2A00000
